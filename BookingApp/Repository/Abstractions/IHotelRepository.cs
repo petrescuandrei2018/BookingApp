@@ -1,0 +1,9 @@
+﻿using BookingApp.Models;
+
+namespace BookingApp.Repository.Abstractions
+{
+    public interface IHotelRepository
+    {
+        Task<List<Hotel>> GetAllHotels();
+    }
+}
