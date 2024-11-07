@@ -1,4 +1,6 @@
-﻿using BookingApp.Models.Dtos;
+﻿using AutoMapper;
+using BookingApp.Models;
+using BookingApp.Models.Dtos;
 using BookingApp.Repository.Abstractions;
 using BookingApp.Services.Abstractions;
 
@@ -7,13 +9,18 @@ namespace BookingApp.Services
     public class HotelService : IHotelService
     {
         private readonly IHotelRepository _hotelRepository;
-        public HotelService(IHotelRepository hotelRepository)
+        private IMapper _mapper;
+        public HotelService(IHotelRepository hotelRepository, IMapper mapper)
         {
             _hotelRepository = hotelRepository;
+            _mapper = mapper;
         }
-        public Task<ResponseHotelDto> GetAllHotels()
+        public async Task<List<ResponseHotelDto>> GetAllHotels()
         {
-            throw new NotImplementedException();
+            List<ResponseHotelDto> responseHotelDtos = new List<ResponseHotelDto>();
+            var hotels = await _hotelRepository.GetAllHotels();
+            responseHotelDtos = _mapper.Map<List<ResponseHotelDto>>(hotels);
+            return responseHotelDtos;
         }
     }
 }

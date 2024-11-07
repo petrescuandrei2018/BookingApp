@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookingApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241103221846_HotelsTipCamere")]
-    partial class HotelsTipCamere
+    [Migration("20241107161438_AddTipCameraSeaView")]
+    partial class AddTipCameraSeaView
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -72,21 +72,6 @@ namespace BookingApp.Migrations
                         });
                 });
 
-            modelBuilder.Entity("BookingApp.Models.HotelTipCamera", b =>
-                {
-                    b.Property<int>("HotelId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TipCameraId")
-                        .HasColumnType("int");
-
-                    b.HasKey("HotelId", "TipCameraId");
-
-                    b.HasIndex("TipCameraId");
-
-                    b.ToTable("HotelSiTipCamere");
-                });
-
             modelBuilder.Entity("BookingApp.Models.TipCamera", b =>
                 {
                     b.Property<int>("TipCameraId")
@@ -103,6 +88,9 @@ namespace BookingApp.Migrations
 
                     b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("HotelId")
+                        .HasColumnType("int");
 
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("nvarchar(max)");
@@ -125,6 +113,8 @@ namespace BookingApp.Migrations
 
                     b.HasKey("TipCameraId");
 
+                    b.HasIndex("HotelId");
+
                     b.ToTable("TipCamere");
 
                     b.HasData(
@@ -132,6 +122,7 @@ namespace BookingApp.Migrations
                         {
                             TipCameraId = 1,
                             CapacitatePersoane = 1,
+                            HotelId = 1,
                             Name = "Single",
                             NrCamereDisponibile = 10,
                             NrCamereOcupate = 10,
@@ -141,40 +132,43 @@ namespace BookingApp.Migrations
                         {
                             TipCameraId = 2,
                             CapacitatePersoane = 2,
+                            HotelId = 2,
                             Name = "Double",
                             NrCamereDisponibile = 30,
                             NrCamereOcupate = 10,
                             NrTotalCamere = 40
+                        },
+                        new
+                        {
+                            TipCameraId = 3,
+                            CapacitatePersoane = 4,
+                            HotelId = 1,
+                            Name = "Apartament",
+                            NrCamereDisponibile = 1,
+                            NrCamereOcupate = 9,
+                            NrTotalCamere = 10
+                        },
+                        new
+                        {
+                            TipCameraId = 4,
+                            CapacitatePersoane = 2,
+                            HotelId = 2,
+                            Name = "SeaView",
+                            NrCamereDisponibile = 2,
+                            NrCamereOcupate = 13,
+                            NrTotalCamere = 15
                         });
-                });
-
-            modelBuilder.Entity("BookingApp.Models.HotelTipCamera", b =>
-                {
-                    b.HasOne("BookingApp.Models.Hotel", "Hotel")
-                        .WithMany("HotelSiTipCamere")
-                        .HasForeignKey("HotelId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BookingApp.Models.TipCamera", "TipCamera")
-                        .WithMany("HotelSiTipCamere")
-                        .HasForeignKey("TipCameraId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Hotel");
-
-                    b.Navigation("TipCamera");
-                });
-
-            modelBuilder.Entity("BookingApp.Models.Hotel", b =>
-                {
-                    b.Navigation("HotelSiTipCamere");
                 });
 
             modelBuilder.Entity("BookingApp.Models.TipCamera", b =>
                 {
-                    b.Navigation("HotelSiTipCamere");
+                    b.HasOne("BookingApp.Models.Hotel", "Hotel")
+                        .WithMany()
+                        .HasForeignKey("HotelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Hotel");
                 });
 #pragma warning restore 612, 618
         }

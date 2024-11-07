@@ -15,7 +15,7 @@ namespace BookingApp.Repository
         }
         public async Task<List<Hotel>> GetAllHotels()
         {
-            var listHotels = await _database.Hotels.ToListAsync();
+            var listHotels = _database.Hotels.ToList();
             return listHotels;
         }
     }

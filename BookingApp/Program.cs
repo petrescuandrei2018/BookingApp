@@ -4,6 +4,8 @@ using BookingApp.Mapping;
 using BookingApp.Models;
 using BookingApp.Repository;
 using BookingApp.Repository.Abstractions;
+using BookingApp.Services;
+using BookingApp.Services.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +23,7 @@ builder.Services.AddSingleton(mapper);
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 builder.Services.AddScoped<IHotelRepository,HotelRepository>();
+builder.Services.AddScoped<IHotelService, HotelService>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

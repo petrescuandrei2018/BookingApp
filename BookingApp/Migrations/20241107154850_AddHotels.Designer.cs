@@ -4,6 +4,7 @@ using BookingApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookingApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241107154850_AddHotels")]
+    partial class AddHotels
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -113,48 +116,6 @@ namespace BookingApp.Migrations
                     b.HasIndex("HotelId");
 
                     b.ToTable("TipCamere");
-
-                    b.HasData(
-                        new
-                        {
-                            TipCameraId = 1,
-                            CapacitatePersoane = 1,
-                            HotelId = 1,
-                            Name = "Single",
-                            NrCamereDisponibile = 10,
-                            NrCamereOcupate = 10,
-                            NrTotalCamere = 20
-                        },
-                        new
-                        {
-                            TipCameraId = 2,
-                            CapacitatePersoane = 2,
-                            HotelId = 2,
-                            Name = "Double",
-                            NrCamereDisponibile = 30,
-                            NrCamereOcupate = 10,
-                            NrTotalCamere = 40
-                        },
-                        new
-                        {
-                            TipCameraId = 3,
-                            CapacitatePersoane = 4,
-                            HotelId = 1,
-                            Name = "Apartament",
-                            NrCamereDisponibile = 1,
-                            NrCamereOcupate = 9,
-                            NrTotalCamere = 10
-                        },
-                        new
-                        {
-                            TipCameraId = 4,
-                            CapacitatePersoane = 2,
-                            HotelId = 2,
-                            Name = "SeaView",
-                            NrCamereDisponibile = 2,
-                            NrCamereOcupate = 13,
-                            NrTotalCamere = 15
-                        });
                 });
 
             modelBuilder.Entity("BookingApp.Models.TipCamera", b =>

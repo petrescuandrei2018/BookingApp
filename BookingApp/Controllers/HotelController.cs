@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using BookingApp.Data;
 using BookingApp.Models.Dtos;
+using BookingApp.Services.Abstractions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BookingApp.Controllers
@@ -10,25 +11,22 @@ namespace BookingApp.Controllers
     public class HotelController : ControllerBase
     {
         private ResponseDto _responseSMR;
-        private readonly AppDbContext _database;
-        private IMapper _mapper;
+        private IHotelService _hotelService;
 
-        public HotelController(AppDbContext database, IMapper mapper)
+        public HotelController(AppDbContext database, IMapper mapper, IHotelService hotelService)
         {
-            _database = database;
-            _mapper = mapper;
             _responseSMR = new ResponseDto();
+            _hotelService = hotelService;
         }
 
         [HttpGet]
         [Route("GetAllHotels")]
-        public ResponseDto GetAllHotels()
+        public async Task<ResponseDto> GetAllHotels()
         {
             try
             {
-                var listHotels = _database.Hotels.ToList();
-                _responseSMR.Result = _mapper.Map<List<ResponseHotelDto>>(listHotels);
-                return _responseSMR;
+               _responseSMR.Result = await _hotelService.GetAllHotels();
+                return _responseSMR ;
             }
             catch (Exception ex)
             {

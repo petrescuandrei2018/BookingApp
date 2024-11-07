@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace BookingApp.Migrations
 {
     /// <inheritdoc />
-    public partial class HotelTipCamera : Migration
+    public partial class AddHotels : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -42,6 +42,7 @@ namespace BookingApp.Migrations
                     NrTotalCamere = table.Column<int>(type: "int", nullable: false),
                     NrCamereDisponibile = table.Column<int>(type: "int", nullable: false),
                     NrCamereOcupate = table.Column<int>(type: "int", nullable: false),
+                    HotelId = table.Column<int>(type: "int", nullable: false),
                     CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     LastModifiedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -50,29 +51,11 @@ namespace BookingApp.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_TipCamere", x => x.TipCameraId);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "HotelSiTipCamere",
-                columns: table => new
-                {
-                    HotelId = table.Column<int>(type: "int", nullable: false),
-                    TipCameraId = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_HotelSiTipCamere", x => new { x.HotelId, x.TipCameraId });
                     table.ForeignKey(
-                        name: "FK_HotelSiTipCamere_Hotels_HotelId",
+                        name: "FK_TipCamere_Hotels_HotelId",
                         column: x => x.HotelId,
                         principalTable: "Hotels",
                         principalColumn: "HotelId",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_HotelSiTipCamere_TipCamere_TipCameraId",
-                        column: x => x.TipCameraId,
-                        principalTable: "TipCamere",
-                        principalColumn: "TipCameraId",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -85,32 +68,20 @@ namespace BookingApp.Migrations
                     { 2, "Constanta", null, null, null, null, "Hotel2" }
                 });
 
-            migrationBuilder.InsertData(
-                table: "TipCamere",
-                columns: new[] { "TipCameraId", "CapacitatePersoane", "CreatedBy", "CreatedDate", "LastModifiedBy", "LastModifiedDate", "Name", "NrCamereDisponibile", "NrCamereOcupate", "NrTotalCamere" },
-                values: new object[,]
-                {
-                    { 1, 1, null, null, null, null, "Single", 10, 10, 20 },
-                    { 2, 2, null, null, null, null, "Double", 30, 10, 40 }
-                });
-
             migrationBuilder.CreateIndex(
-                name: "IX_HotelSiTipCamere_TipCameraId",
-                table: "HotelSiTipCamere",
-                column: "TipCameraId");
+                name: "IX_TipCamere_HotelId",
+                table: "TipCamere",
+                column: "HotelId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "HotelSiTipCamere");
+                name: "TipCamere");
 
             migrationBuilder.DropTable(
                 name: "Hotels");
-
-            migrationBuilder.DropTable(
-                name: "TipCamere");
         }
     }
 }
