@@ -25,8 +25,62 @@ namespace BookingApp.Controllers
         {
             try
             {
-               _responseSMR.Result = await _hotelService.GetAllHotels();
+                _responseSMR.Result = await _hotelService.GetAllHotels();
+                return _responseSMR;
+            }
+            catch (Exception ex)
+            {
+                _responseSMR.IsSuccess = false;
+                _responseSMR.Message = ex.Message;
+                _responseSMR.Result = null;
+                return _responseSMR;
+            }
+        }
+
+        [HttpGet]
+        [Route("GetAllHotels/{filtruNume?}")]
+        public async Task<ResponseDto> GetAllHotels(string? filtruNume)
+        {
+            try
+            {
+               _responseSMR.Result = await _hotelService.GetAllHotels(filtruNume);
                 return _responseSMR ;
+            }
+            catch (Exception ex)
+            {
+                _responseSMR.IsSuccess = false;
+                _responseSMR.Message = ex.Message;
+                _responseSMR.Result = null;
+                return _responseSMR;
+            }
+        }
+
+        [HttpGet]
+        [Route("GetAllHotelsTipCamere")]
+        public async Task<ResponseDto> GetAllHotelsTipCamere()
+        {
+            try
+            {
+                _responseSMR.Result = await _hotelService.GetAllHotelsTipCamera();
+                return _responseSMR;
+            }
+            catch (Exception ex)
+            {
+                _responseSMR.IsSuccess = false;
+                _responseSMR.Message = ex.Message;
+                _responseSMR.Result = null;
+                return _responseSMR;
+            }
+        }
+
+        [HttpGet]
+        [Route("GetHotelsTipCamere/{filtruNumeHotel?}/{capacitatePersoane?}")]
+        public async Task<ResponseDto> GetAllHotelsTipCamere(string? filtruNumeHotel=" ", int? capacitatePersoane=0)
+        {
+            try
+            {
+                _responseSMR.Result = await _hotelService.GetAllHotelsTipCameraFiltered(filtruNumeHotel, capacitatePersoane);
+                return _responseSMR;
             }
             catch (Exception ex)
             {

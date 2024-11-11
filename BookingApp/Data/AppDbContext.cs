@@ -59,6 +59,12 @@ namespace BookingApp.Data
 
             TipCamera tipCameraSeaView = new TipCamera(4, "SeaView", 2, 15, 2, 13, 2);
             modelBuilder.Entity<TipCamera>().HasData(tipCameraSeaView);
+
+            TipCamera tipCameraSingle = new TipCamera(5, "Single", 1, 20, 10, 10, 1);
+            modelBuilder.Entity<TipCamera>().HasData(tipCameraSingle);
+
+            TipCamera tipCameraSingle2 = new TipCamera(6, "Single", 1, 10, 5, 5, 2);
+            modelBuilder.Entity<TipCamera>().HasData(tipCameraSingle2);
         }
     }
 }

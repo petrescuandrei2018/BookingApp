@@ -5,5 +5,6 @@ namespace BookingApp.Repository.Abstractions
     public interface IHotelRepository
     {
         Task<List<Hotel>> GetAllHotels();
+        Task<List<HotelTipCamera>> GetAllHotelsTipCamera();
     }
 }

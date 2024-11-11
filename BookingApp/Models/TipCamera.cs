@@ -17,7 +17,6 @@ namespace BookingApp.Models
         public int HotelId { get; set; }
         public Hotel Hotel { get; set; }
 
-
         public TipCamera(int tipCameraId, string name, int capacitatePersoane,
             int nrTotalCamere, int nrCamereDisponibile, int nrCamereOcupate, int hotelId)
         {
