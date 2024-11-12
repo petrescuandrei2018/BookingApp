@@ -12,6 +12,7 @@ namespace BookingApp.Data
         public DbSet<Hotel> Hotels { get; set; }
 
         public DbSet<TipCamera> TipCamere { get; set; }
+        public DbSet<PretCamera> PretCamere { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -65,6 +66,16 @@ namespace BookingApp.Data
 
             TipCamera tipCameraSingle2 = new TipCamera(6, "Single", 1, 10, 5, 5, 2);
             modelBuilder.Entity<TipCamera>().HasData(tipCameraSingle2);
+
+            PretCamera pretCameraApartament = new PretCamera(1, 900, new DateTime(2024,10,10), new DateTime(2024,12,12), 3);
+            PretCamera pretCameraSeaView = new PretCamera(2, 700, new DateTime(2024,12, 10), new DateTime(2024, 12, 12), 4);
+            PretCamera pretCameraSingle = new PretCamera(3, 500, new DateTime(2024, 09, 25), new DateTime(2024, 12, 12), 5);
+            PretCamera pretCameraSingle2 = new PretCamera(4, 550, new DateTime(2024, 08, 09), new DateTime(2024, 12, 12), 6);
+            modelBuilder.Entity<PretCamera>().HasData(pretCameraApartament);
+            modelBuilder.Entity<PretCamera>().HasData(pretCameraSeaView);
+            modelBuilder.Entity<PretCamera>().HasData(pretCameraSingle);
+            modelBuilder.Entity<PretCamera>().HasData(pretCameraSingle2);
+
         }
     }
 }

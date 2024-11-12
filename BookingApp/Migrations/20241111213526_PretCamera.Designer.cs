@@ -4,6 +4,7 @@ using BookingApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookingApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241111213526_PretCamera")]
+    partial class PretCamera
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -106,40 +109,6 @@ namespace BookingApp.Migrations
                     b.HasIndex("TipCameraId");
 
                     b.ToTable("PretCamere");
-
-                    b.HasData(
-                        new
-                        {
-                            PretCameraId = 1,
-                            EndPretCamera = new DateTime(2024, 12, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PretNoapte = 900f,
-                            StartPretCamera = new DateTime(2024, 10, 10, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            TipCameraId = 3
-                        },
-                        new
-                        {
-                            PretCameraId = 2,
-                            EndPretCamera = new DateTime(2024, 12, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PretNoapte = 700f,
-                            StartPretCamera = new DateTime(2024, 12, 10, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            TipCameraId = 4
-                        },
-                        new
-                        {
-                            PretCameraId = 3,
-                            EndPretCamera = new DateTime(2024, 12, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PretNoapte = 500f,
-                            StartPretCamera = new DateTime(2024, 9, 25, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            TipCameraId = 5
-                        },
-                        new
-                        {
-                            PretCameraId = 4,
-                            EndPretCamera = new DateTime(2024, 12, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PretNoapte = 550f,
-                            StartPretCamera = new DateTime(2024, 8, 9, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            TipCameraId = 6
-                        });
                 });
 
             modelBuilder.Entity("BookingApp.Models.TipCamera", b =>

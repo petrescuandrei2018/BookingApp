@@ -4,6 +4,7 @@ using BookingApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookingApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241111225827_PretCameraObjects2")]
+    partial class PretCameraObjects2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -112,7 +115,7 @@ namespace BookingApp.Migrations
                         {
                             PretCameraId = 1,
                             EndPretCamera = new DateTime(2024, 12, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PretNoapte = 900f,
+                            PretNoapte = 0f,
                             StartPretCamera = new DateTime(2024, 10, 10, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             TipCameraId = 3
                         },
@@ -120,7 +123,7 @@ namespace BookingApp.Migrations
                         {
                             PretCameraId = 2,
                             EndPretCamera = new DateTime(2024, 12, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PretNoapte = 700f,
+                            PretNoapte = 0f,
                             StartPretCamera = new DateTime(2024, 12, 10, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             TipCameraId = 4
                         },
@@ -128,7 +131,7 @@ namespace BookingApp.Migrations
                         {
                             PretCameraId = 3,
                             EndPretCamera = new DateTime(2024, 12, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PretNoapte = 500f,
+                            PretNoapte = 0f,
                             StartPretCamera = new DateTime(2024, 9, 25, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             TipCameraId = 5
                         },
@@ -136,7 +139,7 @@ namespace BookingApp.Migrations
                         {
                             PretCameraId = 4,
                             EndPretCamera = new DateTime(2024, 12, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PretNoapte = 550f,
+                            PretNoapte = 0f,
                             StartPretCamera = new DateTime(2024, 8, 9, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             TipCameraId = 6
                         });
