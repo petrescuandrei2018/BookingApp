@@ -51,12 +51,12 @@ namespace BookingApp.Services
                 }
             }*/
 
-            if(hotels.Any())
+            if (hotels.Any())
             {
                 responseHotelDtos = _mapper.Map<List<ResponseHotelDto>>(hotels);
             }
-            
-            
+
+
             return responseHotelDtos;
         }
 
@@ -72,7 +72,7 @@ namespace BookingApp.Services
             if (!string.IsNullOrEmpty(filtruNumeHotel))
             {
                 hotelsTipCamere = hotelsTipCamere.Where(x => x.HotelName == filtruNumeHotel).ToList();
-                if(hotelsTipCamere.Count == 0 && capacitatePersoane > 0)
+                if (hotelsTipCamere.Count == 0 && capacitatePersoane > 0)
                 {
                     hotelsTipCamere = await _hotelRepository.GetAllHotelsTipCamera();
                     hotelsTipCamere = hotelsTipCamere.Where(x => x.CapacitatePersoane == capacitatePersoane).ToList();
@@ -85,5 +85,18 @@ namespace BookingApp.Services
             }
             return hotelsTipCamere;
         }
+
+        public Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraFiltered(string? filtruNumeHotel, int? capacitatePersoane, float? pret)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPret()
+        {
+            var hotelsTipCamerePret = await _hotelRepository.GetAllHotelsTipCameraPret();
+            return hotelsTipCamerePret;
+        }
+
+        
     }
 }

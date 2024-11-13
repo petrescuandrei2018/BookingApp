@@ -75,11 +75,29 @@ namespace BookingApp.Controllers
 
         [HttpGet]
         [Route("GetHotelsTipCamere/{filtruNumeHotel?}/{capacitatePersoane?}")]
-        public async Task<ResponseDto> GetAllHotelsTipCamere(string? filtruNumeHotel=" ", int? capacitatePersoane=0)
+        public async Task<ResponseDto> GetAllHotelsTipCamere(string? filtruNumeHotel="", int? capacitatePersoane=0)
         {
             try
             {
                 _responseSMR.Result = await _hotelService.GetAllHotelsTipCameraFiltered(filtruNumeHotel, capacitatePersoane);
+                return _responseSMR;
+            }
+            catch (Exception ex)
+            {
+                _responseSMR.IsSuccess = false;
+                _responseSMR.Message = ex.Message;
+                _responseSMR.Result = null;
+                return _responseSMR;
+            }
+        }
+
+        [HttpGet]
+        [Route("GetAllHotelsTipCamerePret")]
+        public async Task<ResponseDto> GetAllHotelsTipCamerePret()
+        {
+            try
+            {
+                _responseSMR.Result = await _hotelService.GetAllHotelsTipCameraPret();
                 return _responseSMR;
             }
             catch (Exception ex)

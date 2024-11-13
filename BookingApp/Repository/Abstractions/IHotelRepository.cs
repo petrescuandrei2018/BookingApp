@@ -6,5 +6,6 @@ namespace BookingApp.Repository.Abstractions
     {
         Task<List<Hotel>> GetAllHotels();
         Task<List<HotelTipCamera>> GetAllHotelsTipCamera();
+        Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPret();
     }
 }

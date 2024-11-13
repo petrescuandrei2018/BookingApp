@@ -36,5 +36,30 @@ namespace BookingApp.Repository
                                     }).ToList();
              return hotelsTipCamere;
         }
+
+        public async Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPret()
+        {
+            var hotelsTipCamerePret = (from hotels in _database.Hotels
+                                   join tipCamere in _database.TipCamere
+                                   on hotels.HotelId equals tipCamere.HotelId
+                                   join pretCamere in _database.PretCamere
+                                   on tipCamere.TipCameraId equals pretCamere.TipCameraId
+                                   select new HotelTipCameraPret
+                                   {
+                                       HotelName = hotels.Name,
+                                       Address = hotels.Address,
+                                       TipCameraName = tipCamere.Name,
+                                       CapacitatePersoane = tipCamere.CapacitatePersoane,
+                                       NrTotalCamere = tipCamere.NrTotalCamere,
+                                       NrCamereDisponibile = tipCamere.NrCamereDisponibile,
+                                       NrCamereOcupate = tipCamere.NrCamereOcupate,
+                                       PretNoapte = pretCamere.PretNoapte,
+                                       StartPretCamera = pretCamere.StartPretCamera,
+                                       EndPretCamera = pretCamere.EndPretCamera                
+
+                                   }).ToList();
+
+            return hotelsTipCamerePret;
+        }
     }
 }
