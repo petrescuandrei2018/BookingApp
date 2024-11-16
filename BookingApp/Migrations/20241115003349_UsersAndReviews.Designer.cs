@@ -4,6 +4,7 @@ using BookingApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookingApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241115003349_UsersAndReviews")]
+    partial class UsersAndReviews
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -66,12 +69,6 @@ namespace BookingApp.Migrations
                             HotelId = 2,
                             Address = "Constanta",
                             Name = "Hotel2"
-                        },
-                        new
-                        {
-                            HotelId = 3,
-                            Address = "Sibu",
-                            Name = "Hotel3"
                         });
                 });
 
@@ -176,48 +173,6 @@ namespace BookingApp.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Reviews");
-
-                    b.HasData(
-                        new
-                        {
-                            ReviewId = 1,
-                            Description = "A fost bine",
-                            HotelId = 1,
-                            Rating = 4.9000000000000004,
-                            UserId = 1
-                        },
-                        new
-                        {
-                            ReviewId = 2,
-                            Description = "Mancare excelenta",
-                            HotelId = 1,
-                            Rating = 5.0,
-                            UserId = 2
-                        },
-                        new
-                        {
-                            ReviewId = 3,
-                            Description = "Priveliste la mare",
-                            HotelId = 1,
-                            Rating = 5.0,
-                            UserId = 3
-                        },
-                        new
-                        {
-                            ReviewId = 4,
-                            Description = "Cazare tarzie",
-                            HotelId = 1,
-                            Rating = 3.5,
-                            UserId = 3
-                        },
-                        new
-                        {
-                            ReviewId = 5,
-                            Description = "Muste in camera",
-                            HotelId = 2,
-                            Rating = 2.0,
-                            UserId = 2
-                        });
                 });
 
             modelBuilder.Entity("BookingApp.Models.TipCamera", b =>

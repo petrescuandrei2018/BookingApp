@@ -19,6 +19,34 @@ namespace BookingApp.Repository
             return listHotels;
         }
 
+        public async Task<List<HotelTipCameraPretReview>> GetAllHotelsByRating()
+        {
+            var hotelsTipCamerePretReview = (from hotels in _database.Hotels
+                                       join tipCamere in _database.TipCamere
+                                       on hotels.HotelId equals tipCamere.HotelId
+                                       join pretCamere in _database.PretCamere
+                                       on tipCamere.TipCameraId equals pretCamere.TipCameraId
+                                       join reviews in _database.Reviews
+                                       on hotels.HotelId equals reviews.HotelId
+                                       select new HotelTipCameraPretReview
+                                       {
+                                           HotelName = hotels.Name,
+                                           Address = hotels.Address,
+                                           /*TipCameraName = tipCamere.Name,
+                                           CapacitatePersoane = tipCamere.CapacitatePersoane,
+                                           NrTotalCamere = tipCamere.NrTotalCamere,
+                                           NrCamereDisponibile = tipCamere.NrCamereDisponibile,
+                                           NrCamereOcupate = tipCamere.NrCamereOcupate,
+                                           PretNoapte = pretCamere.PretNoapte,
+                                           StartPretCamera = pretCamere.StartPretCamera,
+                                           EndPretCamera = pretCamere.EndPretCamera,*/
+                                           Rating = reviews.Rating,
+                                           Description = reviews.Description
+                                       }).ToList();
+
+            return hotelsTipCamerePretReview;
+        }
+
         public async Task<List<HotelTipCamera>> GetAllHotelsTipCamera()
         {
             var hotelsTipCamere =   (from hotels in _database.Hotels
@@ -60,6 +88,12 @@ namespace BookingApp.Repository
                                    }).ToList();
 
             return hotelsTipCamerePret;
+        }
+
+        public async Task<List<Review>> GetAllReviews()
+        {
+            var reviews = _database.Reviews.ToList();
+            return reviews;
         }
     }
 }

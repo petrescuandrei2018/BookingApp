@@ -13,6 +13,8 @@ namespace BookingApp.Data
 
         public DbSet<TipCamera> TipCamere { get; set; }
         public DbSet<PretCamera> PretCamere { get; set; }
+        public DbSet<User> Users { get; set; }
+        public DbSet<Review> Reviews { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -67,8 +69,8 @@ namespace BookingApp.Data
             TipCamera tipCameraSingle2 = new TipCamera(6, "Single", 1, 10, 5, 5, 2);
             modelBuilder.Entity<TipCamera>().HasData(tipCameraSingle2);
 
-            PretCamera pretCameraApartament = new PretCamera(1, 900, new DateTime(2024,10,10), new DateTime(2024,12,12), 3);
-            PretCamera pretCameraSeaView = new PretCamera(2, 700, new DateTime(2024,12, 10), new DateTime(2024, 12, 12), 4);
+            PretCamera pretCameraApartament = new PretCamera(1, 900, new DateTime(2024, 10, 10), new DateTime(2024, 12, 12), 3);
+            PretCamera pretCameraSeaView = new PretCamera(2, 700, new DateTime(2024, 12, 10), new DateTime(2024, 12, 12), 4);
             PretCamera pretCameraSingle = new PretCamera(3, 500, new DateTime(2024, 09, 25), new DateTime(2024, 12, 12), 5);
             PretCamera pretCameraSingle2 = new PretCamera(4, 550, new DateTime(2024, 08, 09), new DateTime(2024, 12, 12), 6);
             modelBuilder.Entity<PretCamera>().HasData(pretCameraApartament);
@@ -76,6 +78,26 @@ namespace BookingApp.Data
             modelBuilder.Entity<PretCamera>().HasData(pretCameraSingle);
             modelBuilder.Entity<PretCamera>().HasData(pretCameraSingle2);
 
+            User user1 = new User(1, "Mihai", "mihai@gmail.com", "0775695878", 30);
+            User user2 = new User(2, "Nicu", "nicu@gmail.com", "0770605078", 20);
+            User user3 = new User(3, "Alex", "alex@gmail.com", "0765665668", 32);
+            modelBuilder.Entity<User>().HasData(user1);
+            modelBuilder.Entity<User>().HasData(user2);
+            modelBuilder.Entity<User>().HasData(user3);
+
+            Review review1 = new Review(1, 4.9, "A fost bine", 1, 1);
+            Review review2 = new Review(2, 5, "Mancare excelenta", 1, 2);
+            Review review3 = new Review(3, 5, "Priveliste la mare", 1, 3);
+            Review review4 = new Review(4, 3.5, "Cazare tarzie", 1, 3);
+            Review review5 = new Review(5, 2, "Muste in camera", 2, 2);
+            modelBuilder.Entity<Review>().HasData(review1);
+            modelBuilder.Entity<Review>().HasData(review2);
+            modelBuilder.Entity<Review>().HasData(review3);
+            modelBuilder.Entity<Review>().HasData(review4);
+            modelBuilder.Entity<Review>().HasData(review5);
+
+            Hotel h3 = new Hotel(3, "Hotel3", "Sibu");
+            modelBuilder.Entity<Hotel>().HasData(h3);
         }
     }
 }
