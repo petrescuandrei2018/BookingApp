@@ -15,6 +15,7 @@ namespace BookingApp.Data
         public DbSet<PretCamera> PretCamere { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Review> Reviews { get; set; }
+        public DbSet<Rezervare> Rezervari { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

@@ -1,5 +1,7 @@
-﻿using BookingApp.Data;
+﻿using AutoMapper;
+using BookingApp.Data;
 using BookingApp.Models;
+using BookingApp.Models.Dtos;
 using BookingApp.Repository.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,10 +11,29 @@ namespace BookingApp.Repository
     {
         private readonly AppDbContext _database;
 
-        public HotelRepository(AppDbContext database)
+        public HotelRepository(AppDbContext database, IMapper mapper)
         {
             _database = database;
         }
+
+        public async Task/*<RezervareDto>*/ AdaugaRezervare(Rezervare rezervare, int tipCameraId)
+        {
+            _database.Rezervari.Add(rezervare);
+            //update si savechanges
+            var tipCameraUpdated = (from tipCamera in _database.TipCamere
+                                    where tipCamera.TipCameraId == tipCameraId
+                                    select tipCamera).First();
+            tipCameraUpdated.NrCamereDisponibile--;
+            tipCameraUpdated.NrCamereOcupate++;
+            _database.SaveChanges();
+
+            RezervareDto rezervareDto = new RezervareDto();
+            rezervareDto.PretCameraId = rezervare.PretCameraId;
+            rezervareDto.UserId = rezervare.UserId;
+            rezervareDto.CheckIn = rezervare.CheckIn;
+            rezervareDto.CheckOut = rezervare.CheckOut;
+        }
+
         public async Task<List<Hotel>> GetAllHotels()
         {
             var listHotels = _database.Hotels.ToList();
@@ -60,7 +81,8 @@ namespace BookingApp.Repository
                                         CapacitatePersoane = tipCamere.CapacitatePersoane,
                                         NrTotalCamere = tipCamere.NrTotalCamere,
                                         NrCamereDisponibile = tipCamere.NrCamereDisponibile,
-                                        NrCamereOcupate = tipCamere.NrCamereOcupate
+                                        NrCamereOcupate = tipCamere.NrCamereOcupate,
+                                        TipCameraId = tipCamere.TipCameraId
                                     }).ToList();
              return hotelsTipCamere;
         }
@@ -90,10 +112,23 @@ namespace BookingApp.Repository
             return hotelsTipCamerePret;
         }
 
+        public async Task<List<PretCamera>> GetAllPretCamere()
+        {
+            var pretCamere = _database.PretCamere.ToList(); //de ce nu ma obliga sa pun await daca scriu
+            return pretCamere;                                         //_database.PretCamere.ToList()? dar ma obliga
+                                                                      //sa fac metoda async ca sa nu dea eroare la return
+        }
+
         public async Task<List<Review>> GetAllReviews()
         {
             var reviews = _database.Reviews.ToList();
             return reviews;
+        }
+
+        public async Task<List<User>> GetAllUsers()
+        {
+            var users = _database.Users.ToList();
+            return users;
         }
     }
 }

@@ -9,5 +9,6 @@
         public int NrTotalCamere { get; set; }
         public int NrCamereDisponibile { get; set; }
         public int NrCamereOcupate { get; set; }
+        public int TipCameraId { get; set; }
     }
 }

@@ -13,5 +13,6 @@ namespace BookingApp.Services.Abstractions
         Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPretFiltered(string? filtruNumeHotel, int? capacitatePersoane,
             float? pret);
         Task<List<HotelWithRating>> GetAllHotelsByRating(double? rating);
+        Task<RezervareDto> CreateRezervareFromDto(RezervareDto rezervareDto);
     }
 }

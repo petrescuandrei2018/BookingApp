@@ -12,6 +12,7 @@ namespace BookingApp.Mapping
             {
                 config.CreateMap<Hotel, ResponseHotelDto>();
                 config.CreateMap<ResponseHotelDto, Hotel>();
+                config.CreateMap<RezervareDto, Rezervare>().ReverseMap();
             });
             return mappingConfig;
         }

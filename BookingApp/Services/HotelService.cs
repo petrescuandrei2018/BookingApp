@@ -3,6 +3,7 @@ using BookingApp.Models;
 using BookingApp.Models.Dtos;
 using BookingApp.Repository.Abstractions;
 using BookingApp.Services.Abstractions;
+using Microsoft.IdentityModel.Tokens;
 using System.Linq;
 
 namespace BookingApp.Services
@@ -15,6 +16,42 @@ namespace BookingApp.Services
         {
             _hotelRepository = hotelRepository;
             _mapper = mapper;
+        }
+
+        public async Task<RezervareDto> CreateRezervareFromDto(RezervareDto rezervareDto)
+        {
+            var users = await _hotelRepository.GetAllUsers();
+            users = users.Where(x => x.UserId == rezervareDto.UserId).ToList();
+
+            var pretCamereIds = await _hotelRepository.GetAllPretCamere();
+            pretCamereIds = pretCamereIds.Where(x => x.PretCameraId == rezervareDto.PretCameraId).ToList();
+          
+            if (users.Count >0 && pretCamereIds.Count >0)
+            {
+                var rezervareDefault = new RezervareDto();
+                var hotelsTipCamere = await _hotelRepository.GetAllHotelsTipCamera();
+                var pretCamere = await _hotelRepository.GetAllPretCamere();
+                var rezervareTipCameraId = (from pretCamera in pretCamere
+                                            where pretCamera.PretCameraId == rezervareDto.PretCameraId
+                                            select pretCamera.TipCameraId).First();
+
+                var nrCamereDisponibile = (from hotelTipCamera in hotelsTipCamere
+                                           where hotelTipCamera.TipCameraId == rezervareTipCameraId
+                                           select hotelTipCamera.NrCamereDisponibile).First();
+
+                if (nrCamereDisponibile >= 1)
+                {
+                    var rezervare = _mapper.Map<Rezervare>(rezervareDto);
+                    await _hotelRepository.AdaugaRezervare(rezervare, rezervareTipCameraId);
+                    return rezervareDto;
+                }
+                return rezervareDefault;
+            }
+            else
+            {
+                var rezervareDefault = new RezervareDto();
+                return rezervareDefault;
+            }
         }
 
         public async Task<List<ResponseHotelDto>> GetAllHotels()

@@ -145,5 +145,23 @@ namespace BookingApp.Controllers
                 return _responseSMR;
             }
         }
+
+        [HttpPost]
+        [Route("CreateRezervare")]
+        public async Task<ResponseDto> Rezerva([FromBody] RezervareDto rezervareDto)
+        {
+            try
+            {
+                _responseSMR.Result = await _hotelService.CreateRezervareFromDto(rezervareDto);
+                return _responseSMR;
+            }
+            catch (Exception ex)
+            {
+                _responseSMR.IsSuccess = false;
+                _responseSMR.Message = "Lipsa camere disponibile";
+                _responseSMR.Result = null;
+                return _responseSMR;
+            }
+        }
     }
 }
