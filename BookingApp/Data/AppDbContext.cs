@@ -20,6 +20,11 @@ namespace BookingApp.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<Rezervare>(configRezervare =>
+            {
+                configRezervare.Property(r => r.Status).HasDefaultValue("Active").IsRequired();
+            });
+
             Hotel hotel1 = new Hotel(1, "Hotel1", "Brasov")
             {
                 Address = "Brasov",

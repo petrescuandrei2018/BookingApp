@@ -15,7 +15,7 @@ namespace BookingApp.Models
         public PretCamera PretCamera { get; set; }
         public DateTime CheckIn {  get; set; }
         public DateTime CheckOut { get; set; }
-        public string Status { get; set; }
+        public string Status { get; set; } = "Active";
 
         public Rezervare(int rezervareId, int userId, int pretCameraId, DateTime checkIn, DateTime checkOut, string status="Active")
         {
