@@ -1,4 +1,5 @@
 ﻿using BookingApp.Data;
+using BookingApp.Models;
 using BookingApp.Services.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
@@ -18,28 +19,35 @@ namespace BookingApp.Services
             _furnizorServicii = furnizorServicii;
         }
 
-        public async Task RezervariUpdateAsync()
+        public async Task ActualizeazaRezervariAsync()
         {
-            // Create a new scope to resolve the scoped AppDbContext
-            using (var scope = _furnizorServicii.CreateScope())
+            
+            using (var contextServicii = _furnizorServicii.CreateScope())
             {
-                var _furnizorDateBd = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var _furnizorDateBd = contextServicii.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                // Find expired bookings (CheckOut in the past and still Active)
-                var rezervariExpirate = _furnizorDateBd.Rezervari
+                // Update statuses for existing bookings
+                var rezervari = await _furnizorDateBd.Rezervari
                     .Include(r => r.PretCamera)
-                    .Where(r => r.CheckOut < DateTime.UtcNow && r.Status == "Active")
-                    .ToList();
+                    .ToListAsync();
 
-                foreach (var rezervare in rezervariExpirate)
+                foreach (var rezervare in rezervari)
                 {
-                    rezervare.Status = "Inactive";
-                    var tipCamera = _furnizorDateBd.TipCamere
-                        .FirstOrDefault(tc => tc.TipCameraId == rezervare.PretCamera.TipCameraId);
-                    if (tipCamera != null)
+                    var stareAnterioara = rezervare.Stare;
+                    rezervare.Stare = DeterminaStareaRezervarii(rezervare.CheckIn, rezervare.CheckOut);
+
+                    // Adjust room counts only when transitioning to Expirata
+                    if ((stareAnterioara == StareRezervare.Activa || stareAnterioara == StareRezervare.Viitoare) &&
+                        rezervare.Stare == StareRezervare.Expirata)
                     {
-                        tipCamera.NrCamereOcupate--;
-                        tipCamera.NrCamereDisponibile++;
+                        var tipCamera = _furnizorDateBd.TipCamere
+                            .FirstOrDefault(tc => tc.TipCameraId == rezervare.PretCamera.TipCameraId);
+
+                        if (tipCamera != null)
+                        {
+                            tipCamera.NrCamereDisponibile++;
+                            tipCamera.NrCamereOcupate--;
+                        }
                     }
                 }
 
@@ -47,12 +55,25 @@ namespace BookingApp.Services
             }
         }
 
+        private StareRezervare DeterminaStareaRezervarii(DateTime dataCheckIn, DateTime dataCheckOut)
+        {
+            var dataCurenta = DateTime.UtcNow;
+
+            if (dataCheckOut < dataCurenta)
+                return StareRezervare.Expirata;
+
+            if (dataCheckIn <= dataCurenta && dataCheckOut >= dataCurenta)
+                return StareRezervare.Activa;
+
+            return StareRezervare.Viitoare;
+        }
+
         protected override async Task ExecuteAsync(CancellationToken tokenAnulare)
         {
             while (!tokenAnulare.IsCancellationRequested)
             {
-                await RezervariUpdateAsync();
-                await Task.Delay(TimeSpan.FromSeconds(10), tokenAnulare); // Adjust delay as needed
+                await ActualizeazaRezervariAsync();
+                await Task.Delay(TimeSpan.FromSeconds(10), tokenAnulare); // Adjust frequency as needed
             }
         }
     }

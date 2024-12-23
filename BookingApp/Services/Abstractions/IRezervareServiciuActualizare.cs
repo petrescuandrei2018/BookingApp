@@ -4,6 +4,6 @@ namespace BookingApp.Services.Abstractions
 {
     public interface IRezervareServiciuActualizare
     {
-        Task RezervariUpdateAsync();
+        Task ActualizeazaRezervariAsync();
     }
 }
