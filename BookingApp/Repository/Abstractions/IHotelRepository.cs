@@ -13,6 +13,9 @@ namespace BookingApp.Repository.Abstractions
         Task<List<HotelTipCameraPretReview>> GetAllHotelsByRating();
         Task<List<Review>> GetAllReviews();
         Task<List<PretCamera>> GetAllPretCamere();
+        Task<List<Rezervare>> GetAllRezervariAsync();
+        Task<List<TipCamera>> GetAllTipCamereAsync();
+
         Task/*<RezervareDto>*/ AdaugaRezervare(Rezervare rezervare, int tipCameraId);
         Task<List<User>> GetAllUsers();
     }

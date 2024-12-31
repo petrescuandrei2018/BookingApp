@@ -163,5 +163,46 @@ namespace BookingApp.Controllers
                 return _responseSMR;
             }
         }
+
+        [HttpGet]
+        [Route("GetAllRezervari")]
+        public async Task<ResponseDto> GetAllRezervari()
+        {
+            try
+            {
+                // Apelarea serviciului pentru a obține toate rezervările
+                _responseSMR.Result = await _hotelService.GetAllRezervariAsync();
+                return _responseSMR;
+            }
+            catch (Exception ex)
+            {
+                // Gestionarea erorilor
+                _responseSMR.IsSuccess = false;
+                _responseSMR.Message = ex.Message;
+                _responseSMR.Result = null;
+                return _responseSMR;
+            }
+        }
+
+        [HttpGet]
+        [Route("GetNonExpiredRezervari")]
+        public async Task<ResponseDto> GetNonExpiredRezervari()
+        {
+            try
+            {
+                // Apelăm metoda din serviciu pentru a obține rezervările care nu sunt expirate
+                _responseSMR.Result = await _hotelService.GetNonExpiredRezervariAsync();
+                _responseSMR.IsSuccess = true;
+                return _responseSMR;
+            }
+            catch (Exception ex)
+            {
+                // Gestionăm erorile și returnăm mesajul corespunzător
+                _responseSMR.IsSuccess = false;
+                _responseSMR.Message = ex.Message;
+                _responseSMR.Result = null;
+                return _responseSMR;
+            }
+        }
     }
 }

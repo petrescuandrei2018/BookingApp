@@ -125,6 +125,18 @@ namespace BookingApp.Repository
             return reviews;
         }
 
+        public async Task<List<Rezervare>> GetAllRezervariAsync()
+        {
+            return await _database.Rezervari
+                .Include(r => r.PretCamera) // Include PretCamera data
+                .ToListAsync();
+        }
+
+        public async Task<List<TipCamera>> GetAllTipCamereAsync()
+        {
+            return await _database.TipCamere.ToListAsync();
+        }
+
         public async Task<List<User>> GetAllUsers()
         {
             var users = _database.Users.ToList();
