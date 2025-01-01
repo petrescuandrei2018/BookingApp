@@ -5,6 +5,7 @@ using BookingApp.Models.Dtos;
 using BookingApp.Repository.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
+
 namespace BookingApp.Repository
 {
     public class HotelRepository : IHotelRepository

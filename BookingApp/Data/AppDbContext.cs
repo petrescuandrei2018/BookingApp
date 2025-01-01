@@ -84,9 +84,9 @@ namespace BookingApp.Data
             modelBuilder.Entity<PretCamera>().HasData(pretCameraSingle);
             modelBuilder.Entity<PretCamera>().HasData(pretCameraSingle2);
 
-            User user1 = new User(1, "Mihai", "mihai@gmail.com", "0775695878", 30);
-            User user2 = new User(2, "Nicu", "nicu@gmail.com", "0770605078", 20);
-            User user3 = new User(3, "Alex", "alex@gmail.com", "0765665668", 32);
+            User user1 = new User(1, "Mihai", "mihai@gmail.com", "0775695878", 30, "parola1");
+            User user2 = new User(2, "Nicu", "nicu@gmail.com", "0770605078", 20, "parola2");
+            User user3 = new User(3, "Alex", "alex@gmail.com", "0765665668", 32, "parola3");
             modelBuilder.Entity<User>().HasData(user1);
             modelBuilder.Entity<User>().HasData(user2);
             modelBuilder.Entity<User>().HasData(user3);

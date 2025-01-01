@@ -11,6 +11,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.CodeAnalysis;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using BCrypt.Net;
+using System.Linq;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,53 +35,88 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddScoped<IHotelRepository,HotelRepository>();
 builder.Services.AddScoped<IHotelService, HotelService>();
 builder.Services.AddScoped<IRezervareServiciuActualizare, RezervareServiciuActualizare>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddHostedService<RezervareServiciuActualizare>();
 
+// Configurarea autentificarii JWT
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidAudience = jwtSettings["Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]))
+    };
+});
+
+builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    // Definim documentatia Swagger pentru API
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "BookingApp API", Version = "v1" });
+
+    // Adaugam definitia de securitate pentru JWT Bearer
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,  // Definim locatia unde va fi trimis token-ul (in header)
+        Name = "Authorization",  // Numele header-ului pentru token
+        Type = SecuritySchemeType.ApiKey,  // Tipul securitatii
+        Scheme = "bearer",  // Schema de autentificare
+        BearerFormat = "JWT",  // Formatul token-ului
+        Description = "Introduceti 'Bearer' urmat de  si apoi token-ul"  // Descrierea pentru Swagger UI
+    });
+
+    // Adaugam cerintele de securitate pentru utilizarea token-ului JWT
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer" 
+                }
+            },
+            new string[] { }
+        }
+    });
+});
 
 var app = builder.Build();
+
+app.UseHttpsRedirection();
+app.UseRouting();
+
+// Add Authentication and Authorization Middleware
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "BookingApp API V1");
+        c.RoutePrefix = "swagger";  // Set Swagger UI route explicitly
+    });
 }
-
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
-
-
-/*< Project Sdk = "Microsoft.NET.Sdk.Web" >
-
-  < PropertyGroup >
-    < TargetFramework > net8.0 </ TargetFramework >
-    < Nullable > enable </ Nullable >
-    < ImplicitUsings > enable </ ImplicitUsings >
-  </ PropertyGroup >
-
-  < ItemGroup >
-    < PackageReference Include = "AutoMapper" Version = "13.0.1" />
-    < PackageReference Include = "Microsoft.EntityFrameworkCore" Version = "8.0.8" />
-    < PackageReference Include = "Microsoft.EntityFrameworkCore.SqlServer" Version = "8.0.8" />
-    < PackageReference Include = "Microsoft.EntityFrameworkCore.Tools" Version = "8.0.8" >
-      < PrivateAssets > all </ PrivateAssets >
-      < IncludeAssets > runtime; build; native; contentfiles; analyzers; buildtransitive </ IncludeAssets >
-    </ PackageReference >
-    < PackageReference Include = "Swashbuckle.AspNetCore" Version = "6.4.0" />
-  </ ItemGroup >
-
-  < ItemGroup >
-    < Folder Include = "Migrations\" />
-  </ ItemGroup >
-
-</ Project >*/

@@ -385,6 +385,10 @@ namespace BookingApp.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -405,6 +409,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 1,
                             Email = "mihai@gmail.com",
+                            Password = "parola1",
                             PhoneNumber = "0775695878",
                             UserName = "Mihai",
                             Varsta = 30
@@ -413,6 +418,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 2,
                             Email = "nicu@gmail.com",
+                            Password = "parola2",
                             PhoneNumber = "0770605078",
                             UserName = "Nicu",
                             Varsta = 20
@@ -421,6 +427,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 3,
                             Email = "alex@gmail.com",
+                            Password = "parola3",
                             PhoneNumber = "0765665668",
                             UserName = "Alex",
                             Varsta = 32
