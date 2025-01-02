@@ -40,6 +40,10 @@ builder.Services.AddHostedService<RezervareServiciuActualizare>();
 
 // Configurarea autentificarii JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt");
+
+// Log the JWT Key for debugging purposes
+Console.WriteLine($"Program Key: {jwtSettings["Key"]}");
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -56,6 +60,16 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]))
+    };
+
+    // Add detailed error messages for debugging purposes
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+            return Task.CompletedTask;
+        }
     };
 });
 

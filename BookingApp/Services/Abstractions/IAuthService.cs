@@ -1,4 +1,5 @@
-﻿using BookingApp.Models.Dtos;
+﻿using BookingApp.Models;
+using BookingApp.Models.Dtos;
 
 namespace BookingApp.Services.Abstractions
 {
@@ -13,7 +14,7 @@ namespace BookingApp.Services.Abstractions
             
             /// Autentifică utilizatorul și returnează un token JWT
             string AutentificaUtilizator(string email, string parola);
-            Task<bool> RegisterUser(UserDto userDto);
+            Task<User> RegisterUser(UserDto userDto);
 
     }
 }

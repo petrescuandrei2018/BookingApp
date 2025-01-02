@@ -4,6 +4,7 @@ using BookingApp.Models.Dtos;
 using BookingApp.Services.Abstractions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using BookingApp.Services;
 
 
 namespace BookingApp.Controllers
@@ -28,7 +29,6 @@ namespace BookingApp.Controllers
         [Route("register")]
         public async Task<ResponseDto> Inregistreaza([FromBody] UserDto userDto)
         {
-            // Verificăm dacă modelul de date este valid
             if (ModelState.IsValid == false)
             {
                 _responseSMR.IsSuccess = false;
@@ -37,23 +37,39 @@ namespace BookingApp.Controllers
                 return _responseSMR;
             }
 
-            // Înregistrăm utilizatorul folosind serviciul de autentificare
-            var esteUtilizatorInregistrat = await _serviciuAutentificare.RegisterUser(userDto);
+            try
+            {
+                // Înregistrăm utilizatorul folosind serviciul de autentificare
+                var utilizatorNou = await _serviciuAutentificare.RegisterUser(userDto);
 
-            // Dacă utilizatorul există deja
-            if (esteUtilizatorInregistrat == false)
+                // Debugging: Check the contents of utilizatorNou
+                if (utilizatorNou == null)
+                {
+                    throw new Exception("Eroare la înregistrare. Utilizatorul returnat este null.");
+                }
+
+                Console.WriteLine($"Utilizator înregistrat: {utilizatorNou.UserId}, {utilizatorNou.UserName}");
+
+                // Construim răspunsul cu detaliile utilizatorului
+                _responseSMR.IsSuccess = true;
+                _responseSMR.Message = "Utilizator înregistrat cu succes.";
+                _responseSMR.Result = new
+                {
+                    Id = utilizatorNou.UserId,
+                    Nume = utilizatorNou.UserName,
+                    Email = utilizatorNou.Email,
+                    Telefon = utilizatorNou.PhoneNumber,
+                    Varsta = utilizatorNou.Varsta
+                };
+                return _responseSMR;
+            }
+            catch (Exception ex)
             {
                 _responseSMR.IsSuccess = false;
-                _responseSMR.Message = "Email-ul este deja folosit de un alt utilizator.";
+                _responseSMR.Message = ex.Message;
                 _responseSMR.Result = null;
                 return _responseSMR;
             }
-
-            // Înregistrarea a avut succes
-            _responseSMR.IsSuccess = true;
-            _responseSMR.Message = "Utilizator înregistrat cu succes.";
-            _responseSMR.Result = null;
-            return _responseSMR;
         }
 
         [HttpGet]
@@ -182,7 +198,6 @@ namespace BookingApp.Controllers
                 return _responseSMR;
             }
         }
-
         [HttpPost]
         [Route("CreateRezervare")]
         [Authorize] // Permite accesul doar utilizatorilor autentificați
@@ -190,17 +205,36 @@ namespace BookingApp.Controllers
         {
             var response = new ResponseDto(); // Inițializăm răspunsul
 
-            // Verificăm dacă utilizatorul este autentificat
-            if (User.Identity.IsAuthenticated == false)
-            {
-                response.IsSuccess = false;
-                response.Message = "Nu esti autentificat. Te rugăm să te autentifici sau să te înregistrezi.";
-                response.Result = null;
-                return response;
-            }
-
             try
             {
+                // Verificăm dacă utilizatorul este autentificat și obținem UserId din token
+                var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UtilizatorId");
+                if (userIdClaim == null)
+                {
+                    response.IsSuccess = false;
+                    response.Message = "Token invalid sau utilizator neautorizat.";
+                    response.Result = null;
+                    return response;
+                }
+
+                // Convertim UserId din token la int
+                if (!int.TryParse(userIdClaim.Value, out int userId))
+                {
+                    response.IsSuccess = false;
+                    response.Message = "Token-ul conține un ID utilizator invalid.";
+                    response.Result = null;
+                    return response;
+                }
+
+                // Validăm că UserId din token corespunde cu cel din rezervareDto
+                if (userId != rezervareDto.UserId)
+                {
+                    response.IsSuccess = false;
+                    response.Message = "Utilizatorul autentificat nu are permisiuni pentru această acțiune.";
+                    response.Result = null;
+                    return response;
+                }
+
                 // Apelăm serviciul pentru a crea rezervarea
                 response.Result = await _serviciuHotel.CreateRezervareFromDto(rezervareDto);
                 response.IsSuccess = true;
@@ -210,7 +244,7 @@ namespace BookingApp.Controllers
             {
                 // Gestionăm erorile și returnăm mesajul corespunzător
                 response.IsSuccess = false;
-                response.Message = "Lipsa camere disponibile sau eroare de procesare.";
+                response.Message = $"Eroare: {ex.Message}";
                 response.Result = null;
             }
 
@@ -238,6 +272,7 @@ namespace BookingApp.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         [Route("GetNonExpiredRezervari")]
         public async Task<ResponseDto> GetNonExpiredRezervari()
         {
@@ -256,6 +291,35 @@ namespace BookingApp.Controllers
                 _responseSMR.Result = null;
                 return _responseSMR;
             }
+        }
+
+        /// Autentifică utilizatorul și generează un token JWT.
+        [HttpPost]
+        [Route("login")]
+        public IActionResult Login([FromBody] LogInDto logInDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest("Datele trimise nu sunt valide.");
+            }
+
+            var token = _serviciuAutentificare.AutentificaUtilizator(logInDto.Email, logInDto.Password);
+
+            if (token == "Email sau parola incorectă.")
+            {
+                return Unauthorized(new
+                {
+                    isSuccess = false,
+                    message = "Email sau parola incorectă."
+                });
+            }
+
+            return Ok(new
+            {
+                isSuccess = true,
+                message = "Autentificare reușită.",
+                result = token
+            });
         }
     }
 }

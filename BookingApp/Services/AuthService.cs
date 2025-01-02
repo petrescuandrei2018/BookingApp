@@ -27,6 +27,12 @@ namespace BookingApp.Services
         {
             var setariJwt = _configuratie.GetSection("Jwt");
             var cheieSecreta = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(setariJwt["Key"]));
+
+            if (cheieSecreta.Key.Length < 32)
+            {
+                throw new ArgumentException("Cheia secretă trebuie să aibă cel puțin 32 de caractere.");
+            }
+
             var semnatura = new SigningCredentials(cheieSecreta, SecurityAlgorithms.HmacSha256);
 
             var informatiiToken = new List<Claim>
@@ -45,6 +51,8 @@ namespace BookingApp.Services
                 expires: DateTime.UtcNow.AddMinutes(int.Parse(setariJwt["ExpiresInMinutes"])),
                 signingCredentials: semnatura
             );
+
+            Console.WriteLine($"AuthService Key: {setariJwt["Key"]}");
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
@@ -83,13 +91,13 @@ namespace BookingApp.Services
         }
 
         /// Înregistrează un utilizator nou și salvează parola într-un format criptat
-        public async Task<bool> RegisterUser(UserDto userDto)
+        public async Task<User> RegisterUser(UserDto userDto)
         {
             // Verificăm dacă email-ul există deja în baza de date
             var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == userDto.Email);
             if (existingUser != null)
             {
-                return false; // Utilizatorul există deja
+                throw new Exception("Email-ul este deja folosit de un alt utilizator.");
             }
 
             // Criptăm parola utilizatorului
@@ -109,7 +117,7 @@ namespace BookingApp.Services
             _context.Users.Add(newUser);
             await _context.SaveChangesAsync();
 
-            return true; // Utilizatorul a fost înregistrat cu succes
+            return newUser;
         }
     }
 }
