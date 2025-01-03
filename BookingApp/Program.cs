@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using BookingApp.Data;
 using BookingApp.Mapping;
 using BookingApp.Models;
@@ -17,6 +17,8 @@ using System.Text;
 using BCrypt.Net;
 using System.Linq;
 using Microsoft.OpenApi.Models;
+using Microsoft.IdentityModel.Tokens;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,7 +34,7 @@ IMapper mapper = MappingConfig.RegisterMaps().CreateMapper();
 builder.Services.AddSingleton(mapper);
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
-builder.Services.AddScoped<IHotelRepository,HotelRepository>();
+builder.Services.AddScoped<IHotelRepository, HotelRepository>();
 builder.Services.AddScoped<IHotelService, HotelService>();
 builder.Services.AddScoped<IRezervareServiciuActualizare, RezervareServiciuActualizare>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -53,21 +55,25 @@ builder.Services.AddAuthentication(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
+        ValidateIssuer = false, // Dezactivăm temporar validarea
+        ValidateAudience = false, // Dezactivăm temporar validarea
+
         ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero, // Elimină diferențele acceptate implicit
+
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("aVerySecureAndLongEnoughKey1234567890!"))
     };
 
-    // Add detailed error messages for debugging purposes
+    // Log pentru verificarea cheii
+    Console.WriteLine($"Cheia de semnare din TokenValidationParameters: {Encoding.UTF8.GetString(((SymmetricSecurityKey)options.TokenValidationParameters.IssuerSigningKey).Key)}");
+
     options.Events = new JwtBearerEvents
     {
         OnAuthenticationFailed = context =>
         {
-            Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+            Console.WriteLine($"Authentication failed: {context.Exception}");
+            Console.WriteLine($"Token: {context.Request.Headers["Authorization"]}");
             return Task.CompletedTask;
         }
     };
@@ -103,7 +109,7 @@ builder.Services.AddSwaggerGen(c =>
                 Reference = new OpenApiReference
                 {
                     Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer" 
+                    Id = "Bearer"
                 }
             },
             new string[] { }
@@ -115,6 +121,56 @@ var app = builder.Build();
 
 app.UseHttpsRedirection();
 app.UseRouting();
+
+app.Use(async (context, next) => // pentru debug
+{
+    if (context.Request.Headers.ContainsKey("Authorization"))
+    {
+        var token = context.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+        Console.WriteLine($"Token JWT primit: {token}");
+
+        try
+        {
+            var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+            var jwtToken = handler.ReadJwtToken(token);
+
+            Console.WriteLine($"Issuer: {jwtToken.Issuer}");
+            Console.WriteLine($"Audience: {jwtToken.Audiences.FirstOrDefault()}");
+            Console.WriteLine($"Claims:");
+            foreach (var claim in jwtToken.Claims)
+            {
+                Console.WriteLine($"{claim.Type}: {claim.Value}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Eroare la decodarea token-ului: {ex.Message}");
+        }
+    }
+    else
+    {
+        Console.WriteLine("Lipsește header-ul Authorization.");
+    }
+    await next();
+});
+
+// Middleware pentru logarea header-ului Authorization
+app.Use(async (context, next) =>
+{
+    // Verificăm dacă header-ul Authorization există
+    if (context.Request.Headers.ContainsKey("Authorization"))
+    {
+        var token = context.Request.Headers["Authorization"];
+        Console.WriteLine($"Header Authorization: {token}");
+    }
+    else
+    {
+        Console.WriteLine("Lipsește header-ul Authorization.");
+    }
+    await next(); // Continuăm procesarea pipeline-ului
+});
+
+Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true; // pentru debug
 
 // Add Authentication and Authorization Middleware
 app.UseAuthentication();

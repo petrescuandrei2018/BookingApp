@@ -23,38 +23,53 @@ namespace BookingApp.Services
         }
 
         /// Generează un token JWT pe baza utilizatorului și a rolurilor
-        public string GenereazaToken(string utilizatorId, IEnumerable<string> roluri)
+        public string GenereazaToken(string utilizatorId)
         {
+            Console.WriteLine("Începem generarea token-ului...");
+
             var setariJwt = _configuratie.GetSection("Jwt");
-            var cheieSecreta = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(setariJwt["Key"]));
+            Console.WriteLine($"Issuer: {setariJwt["Issuer"]}");
+            Console.WriteLine($"Audience: {setariJwt["Audience"]}");
+            Console.WriteLine($"ExpiresInMinutes: {setariJwt["ExpiresInMinutes"]}");
+
+            var cheieSecreta = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("aVerySecureAndLongEnoughKey1234567890!"));
 
             if (cheieSecreta.Key.Length < 32)
             {
+                Console.WriteLine("Eroare: Cheia secretă are mai puțin de 32 de caractere!");
                 throw new ArgumentException("Cheia secretă trebuie să aibă cel puțin 32 de caractere.");
             }
+            Console.WriteLine("Cheia secretă este validă.");
 
             var semnatura = new SigningCredentials(cheieSecreta, SecurityAlgorithms.HmacSha256);
+            Console.WriteLine("Semnătura generată cu succes.");
+
+            // Calculăm timpul curent și timpul de expirare ca timestamp-uri UNIX
+            var now = DateTimeOffset.UtcNow;
+            var expires = now.AddMinutes(int.Parse(setariJwt["ExpiresInMinutes"]));
 
             var informatiiToken = new List<Claim>
             {
                 new Claim("UtilizatorId", utilizatorId),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(JwtRegisteredClaimNames.Iat, DateTime.UtcNow.ToString(), ClaimValueTypes.Integer64)
+                new Claim(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
             };
 
-            informatiiToken.AddRange(roluri.Select(rol => new Claim(ClaimTypes.Role, rol)));
+            Console.WriteLine($"Revendicare: iat = {now.ToUnixTimeSeconds()}");
+            Console.WriteLine($"Revendicare: exp = {expires.ToUnixTimeSeconds()}");
 
             var token = new JwtSecurityToken(
                 issuer: setariJwt["Issuer"],
                 audience: setariJwt["Audience"],
                 claims: informatiiToken,
-                expires: DateTime.UtcNow.AddMinutes(int.Parse(setariJwt["ExpiresInMinutes"])),
+                expires: expires.UtcDateTime,
                 signingCredentials: semnatura
             );
 
-            Console.WriteLine($"AuthService Key: {setariJwt["Key"]}");
+            var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            Console.WriteLine($"Token generat cu succes: {tokenString}");
+            return tokenString;
         }
 
         /// Validează credențialele utilizatorului folosind hashing pentru parola
@@ -81,13 +96,24 @@ namespace BookingApp.Services
 
             var utilizator = _context.Users.FirstOrDefault(u => u.Email == email);
 
-            return GenereazaToken(utilizator.UserId.ToString(), new List<string> { "User" });
+            return GenereazaToken(utilizator.UserId.ToString());
         }
 
         /// Transformă parola utilizatorului într-un format criptat pentru a asigura securitatea acesteia în baza de date
         public string HashPassword(string password)
         {
             return BCrypt.Net.BCrypt.HashPassword(password);
+        }
+
+        private string CurataValoareRevendicare(string valoare)
+        {
+            if (string.IsNullOrWhiteSpace(valoare))
+                return string.Empty;
+
+            // Eliminăm spațiile și caracterele speciale care pot cauza probleme
+            valoare = valoare.Trim();
+            valoare = valoare.Replace("\r", "").Replace("\n", "").Replace("\"", "").Replace("'", "");
+            return valoare;
         }
 
         /// Înregistrează un utilizator nou și salvează parola într-un format criptat

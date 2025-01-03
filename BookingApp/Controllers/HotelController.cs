@@ -271,8 +271,8 @@ namespace BookingApp.Controllers
             }
         }
 
-        [HttpGet]
         [Authorize]
+        [HttpGet]
         [Route("GetNonExpiredRezervari")]
         public async Task<ResponseDto> GetNonExpiredRezervari()
         {
