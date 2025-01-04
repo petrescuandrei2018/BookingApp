@@ -4,6 +4,7 @@ using BookingApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookingApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250104114932_ActualizareRolText")]
+    partial class ActualizareRolText
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -397,8 +400,7 @@ namespace BookingApp.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("nvarchar(max)")
-                        .HasDefaultValue("user")
-                        .UseCollation("SQL_Latin1_General_CP1_CI_AS");
+                        .HasDefaultValue("User");
 
                     b.Property<string>("UserName")
                         .IsRequired()
@@ -418,7 +420,7 @@ namespace BookingApp.Migrations
                             Email = "mihai@gmail.com",
                             Password = "parola1",
                             PhoneNumber = "0775695878",
-                            Rol = "user",
+                            Rol = "User",
                             UserName = "Mihai",
                             Varsta = 30
                         },
@@ -428,7 +430,7 @@ namespace BookingApp.Migrations
                             Email = "nicu@gmail.com",
                             Password = "parola2",
                             PhoneNumber = "0770605078",
-                            Rol = "user",
+                            Rol = "User",
                             UserName = "Nicu",
                             Varsta = 20
                         },
@@ -438,7 +440,7 @@ namespace BookingApp.Migrations
                             Email = "alex@gmail.com",
                             Password = "parola3",
                             PhoneNumber = "0765665668",
-                            Rol = "user",
+                            Rol = "User",
                             UserName = "Alex",
                             Varsta = 32
                         });

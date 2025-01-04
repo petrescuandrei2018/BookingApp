@@ -7,7 +7,7 @@ namespace BookingApp.Services.Abstractions
     {
 
             /// Generează un token JWT pe baza utilizatorului și a rolurilor
-            string GenereazaToken(string utilizatorId);
+            string GenereazaToken(string utilizatorId, IEnumerable<string> roluri);
 
             /// Validează dacă utilizatorul există și dacă datele sunt corecte
             bool ValideazaUtilizator(string email, string parola);

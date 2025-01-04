@@ -10,7 +10,8 @@ namespace BookingApp.Models
         public string Email { get; set; }
         public string PhoneNumber {  get; set; }
         public int Varsta {  get; set; }
-        public string Password { get; set; } 
+        public string Password { get; set; }
+        public RolUtilizator Rol { get; set; } // Enum pentru roluri
 
 
         public User(int userId, string userName, string email, string phoneNumber, int varsta, string password)

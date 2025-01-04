@@ -18,5 +18,7 @@
 
         [Required, MinLength(8, ErrorMessage = "Parola trebuie să aibă cel puțin 8 caractere")]
         public string Password { get; set; }
+        public RolUtilizator Rol { get; set; } // Enum pentru roluri
+
     }
 }

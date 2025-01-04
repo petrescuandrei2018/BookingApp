@@ -20,6 +20,8 @@ namespace BookingApp.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.ApplyConfiguration(new UserConfiguration());
+
             modelBuilder.Entity<Rezervare>(configRezervare =>
             {
                 configRezervare.Property(r => r.Stare).HasConversion<string>().IsRequired();
