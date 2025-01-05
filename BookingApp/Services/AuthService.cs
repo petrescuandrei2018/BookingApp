@@ -22,13 +22,14 @@ namespace BookingApp.Services
             _context = context;
         }
 
-        /// Generează un token JWT pe baza utilizatorului
+        /// <summary>
+        /// Generează un token JWT pe baza ID-ului utilizatorului și a rolurilor asociate.
+        /// </summary>
         public string GenereazaToken(string utilizatorId, IEnumerable<string> roluri)
         {
             var setariJwt = _configuratie.GetSection("Jwt");
 
             var cheieSecreta = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("aVerySecureAndLongEnoughKey1234567890!"));
-
             if (cheieSecreta.Key.Length < 32)
             {
                 throw new ArgumentException("Cheia secretă trebuie să aibă cel puțin 32 de caractere.");
@@ -36,18 +37,18 @@ namespace BookingApp.Services
 
             var semnatura = new SigningCredentials(cheieSecreta, SecurityAlgorithms.HmacSha256);
 
-            // Calculăm timpul curent și timpul de expirare ca timestamp-uri UNIX
+            // Calculăm timpul curent și timpul de expirare
             var now = DateTimeOffset.UtcNow;
             var expires = now.AddMinutes(int.Parse(setariJwt["ExpiresInMinutes"]));
 
             var informatiiToken = new List<Claim>
-    {
-        new Claim("UtilizatorId", utilizatorId),
-        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-        new Claim(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-    };
+            {
+                new Claim("UtilizatorId", utilizatorId),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+            };
 
-            // Adăugăm rolurile în token
+            // Adăugăm rolurile utilizatorului în token
             informatiiToken.AddRange(roluri.Select(rol => new Claim(ClaimTypes.Role, rol)));
 
             var token = new JwtSecurityToken(
@@ -61,57 +62,68 @@ namespace BookingApp.Services
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        /// Validează credențialele utilizatorului folosind hashing pentru parola
+        /// <summary>
+        /// Verifică dacă utilizatorul există și dacă parola este validă.
+        /// </summary>
         public bool ValideazaUtilizator(string email, string parola)
         {
-            var utilizator = _context.Users.FirstOrDefault(u => u.Email == email);
-
+            var utilizator = _context.Users.FirstOrDefault(u => u.Email.ToLower() == email.ToLower());
             if (utilizator == null)
             {
                 return false; // Utilizatorul nu există
             }
 
-            // Verificăm parola folosind hashing
+            // Verificăm parola utilizând hashing
             return BCrypt.Net.BCrypt.Verify(parola, utilizator.Password);
         }
 
-        /// Autentifică utilizatorul și returnează un token JWT
+        /// <summary>
+        /// Autentifică utilizatorul și generează un token JWT.
+        /// </summary>
         public string AutentificaUtilizator(string email, string parola)
         {
-            if (ValideazaUtilizator(email, parola) == false)
+            if (!ValideazaUtilizator(email, parola))
             {
                 return "Email sau parola incorectă.";
             }
 
-            var utilizator = _context.Users.FirstOrDefault(u => u.Email == email);
+            var utilizator = _context.Users.FirstOrDefault(u => u.Email.ToLower() == email.ToLower());
 
-            // În exemplu, presupunem că utilizatorul are un rol definit ca "User"
-            var roluri = new List<string> { "User" };
+            // Obținem rolurile utilizatorului
+            var roluri = new List<string> { utilizator.Rol.ToString() };
 
             return GenereazaToken(utilizator.UserId.ToString(), roluri);
         }
 
-        /// Transformă parola utilizatorului într-un format criptat pentru a asigura securitatea acesteia în baza de date
+        /// <summary>
+        /// Transformă parola utilizatorului într-un format criptat pentru securitate.
+        /// </summary>
         public string HashPassword(string password)
         {
             return BCrypt.Net.BCrypt.HashPassword(password);
         }
 
-        /// Curăță valorile atributelor pentru a elimina caractere problematice
+        /// <summary>
+        /// Curăță valorile string pentru a elimina caracterele problematice.
+        /// </summary>
         private string CurataValoareAtribut(string valoare)
         {
             if (string.IsNullOrWhiteSpace(valoare))
                 return string.Empty;
 
-            valoare = valoare.Trim();
-            valoare = valoare.Replace("\r", "").Replace("\n", "").Replace("\"", "").Replace("'", "");
-            return valoare;
+            return valoare.Trim()
+                          .Replace("\r", "")
+                          .Replace("\n", "")
+                          .Replace("\"", "")
+                          .Replace("'", "");
         }
 
-        /// Înregistrează un utilizator nou și salvează parola într-un format criptat
+        /// <summary>
+        /// Înregistrează un utilizator nou și salvează parola într-un format criptat.
+        /// </summary>
         public async Task<User> RegisterUser(UserDto userDto)
         {
-            // Verificăm dacă email-ul există deja în baza de date (case-insensitive)
+            // Verificăm dacă email-ul există deja (case-insensitive)
             var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == userDto.Email.ToLower());
             if (existingUser != null)
             {
@@ -121,18 +133,18 @@ namespace BookingApp.Services
             // Criptăm parola utilizatorului
             var hashedPassword = HashPassword(userDto.Password);
 
-            // Convertim valoarea enum "Rol" în text cu litere mici
+            // Convertim rolul în litere mici
             var rolInLitereMici = userDto.Rol.ToString().ToLower();
 
-            // Creăm obiectul User pentru salvare
+            // Creăm un nou utilizator
             var newUser = new User
             {
-                UserName = userDto.UserName, // Numele utilizatorului
-                Email = userDto.Email.ToLower(), // Email salvat în litere mici
-                PhoneNumber = userDto.PhoneNumber, // Numărul de telefon
-                Varsta = userDto.Varsta, // Vârsta utilizatorului
-                Password = hashedPassword, // Parola criptată
-                Rol = Enum.Parse<RolUtilizator>(rolInLitereMici, true) // Conversie finală în enum
+                UserName = userDto.UserName,
+                Email = userDto.Email.ToLower(),
+                PhoneNumber = userDto.PhoneNumber,
+                Varsta = userDto.Varsta,
+                Password = hashedPassword,
+                Rol = Enum.Parse<RolUtilizator>(rolInLitereMici, true)
             };
 
             // Salvăm utilizatorul în baza de date
@@ -141,5 +153,36 @@ namespace BookingApp.Services
 
             return newUser; // Returnăm utilizatorul nou creat
         }
+
+        /// <summary>
+        /// Obține un utilizator pe baza ID-ului său.
+        /// </summary>
+        public async Task<User?> GetUserByIdAsync(int userId)
+        {
+            return await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+        }
+
+        /// <summary>
+        /// Actualizează un utilizator existent.
+        /// </summary>
+        public async Task<bool> UpdateUserAsync(User user)
+        {
+            try
+            {
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+                return true; // Modificarea a fost salvată cu succes
+            }
+            catch
+            {
+                return false; // A apărut o eroare
+            }
+        }
+
+        public async Task<List<User>> GetAllUsersAsync()
+        {
+            return await _context.Users.ToListAsync();
+        }
+
     }
 }

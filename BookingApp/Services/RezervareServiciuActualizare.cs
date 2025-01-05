@@ -10,33 +10,39 @@ using System.Threading.Tasks;
 
 namespace BookingApp.Services
 {
+    // Serviciu pentru actualizarea automată a rezervărilor
     public class RezervareServiciuActualizare : BackgroundService, IRezervareServiciuActualizare
     {
+        // Furnizorul de servicii utilizat pentru a crea scope-uri
         private readonly IServiceProvider _furnizorServicii;
 
+        // Constructor pentru injectarea dependențelor
         public RezervareServiciuActualizare(IServiceProvider furnizorServicii)
         {
             _furnizorServicii = furnizorServicii;
         }
 
+        // Metodă pentru actualizarea rezervărilor existente
         public async Task ActualizeazaRezervariAsync()
         {
-            
             using (var contextServicii = _furnizorServicii.CreateScope())
             {
                 var _furnizorDateBd = contextServicii.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                // Update statuses for existing bookings
+                // Obținem toate rezervările împreună cu camerele aferente
                 var rezervari = await _furnizorDateBd.Rezervari
                     .Include(r => r.PretCamera)
                     .ToListAsync();
 
                 foreach (var rezervare in rezervari)
                 {
+                    // Salvăm starea anterioară a rezervării
                     var stareAnterioara = rezervare.Stare;
+
+                    // Determinăm noua stare a rezervării pe baza datelor CheckIn și CheckOut
                     rezervare.Stare = DeterminaStareaRezervarii(rezervare.CheckIn, rezervare.CheckOut);
 
-                    // Adjust room counts only when transitioning to Expirata
+                    // Ajustăm numărul de camere doar când rezervarea trece în starea Expirata
                     if ((stareAnterioara == StareRezervare.Activa || stareAnterioara == StareRezervare.Viitoare) &&
                         rezervare.Stare == StareRezervare.Expirata)
                     {
@@ -45,16 +51,19 @@ namespace BookingApp.Services
 
                         if (tipCamera != null)
                         {
+                            // Incrementăm camerele disponibile și decrementăm camerele ocupate
                             tipCamera.NrCamereDisponibile++;
                             tipCamera.NrCamereOcupate--;
                         }
                     }
                 }
 
+                // Salvăm modificările în baza de date
                 await _furnizorDateBd.SaveChangesAsync();
             }
         }
 
+        // Metodă pentru determinarea stării rezervării
         private StareRezervare DeterminaStareaRezervarii(DateTime dataCheckIn, DateTime dataCheckOut)
         {
             var dataCurenta = DateTime.UtcNow;
@@ -68,12 +77,16 @@ namespace BookingApp.Services
             return StareRezervare.Viitoare;
         }
 
+        // Metodă principală care rulează în fundal pentru actualizarea periodică a rezervărilor
         protected override async Task ExecuteAsync(CancellationToken tokenAnulare)
         {
             while (!tokenAnulare.IsCancellationRequested)
             {
+                // Actualizăm rezervările
                 await ActualizeazaRezervariAsync();
-                await Task.Delay(TimeSpan.FromSeconds(10), tokenAnulare); // Adjust frequency as needed
+
+                // Așteptăm înainte de următoarea rulare
+                await Task.Delay(TimeSpan.FromSeconds(10), tokenAnulare); // Ajustați frecvența după necesitate
             }
         }
     }

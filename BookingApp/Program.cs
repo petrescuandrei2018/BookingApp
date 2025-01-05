@@ -4,6 +4,7 @@ using BookingApp.Mapping;
 using BookingApp.Models;
 using BookingApp.Repository;
 using BookingApp.Repository.Abstractions;
+using BookingApp.Helpers;
 using BookingApp.Services;
 using BookingApp.Services.Abstractions;
 using Microsoft.AspNetCore.Identity;
@@ -19,27 +20,36 @@ using System.Linq;
 using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Any;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Adăugăm serviciile necesare aplicației
+// Înregistrăm configurațiile JWT
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+
+// Configurăm serviciul pentru baza de date folosind SQL Server
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
+// Configurăm AutoMapper pentru maparea obiectelor DTO și entităților
 IMapper mapper = MappingConfig.RegisterMaps().CreateMapper();
-
 builder.Services.AddSingleton(mapper);
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
+// Adăugăm serviciile proiectului în containerul de servicii
 builder.Services.AddScoped<IHotelRepository, HotelRepository>();
 builder.Services.AddScoped<IHotelService, HotelService>();
 builder.Services.AddScoped<IRezervareServiciuActualizare, RezervareServiciuActualizare>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddHostedService<RezervareServiciuActualizare>();
+builder.Services.AddScoped<IUserDropdownService, UserDropdownService>();
+builder.Services.AddTransient<SetAdminDropdownFilter>();
 
-// Configurarea autentificării JWT
-var jwtSettings = builder.Configuration.GetSection("Jwt");
+
+// Configurare pentru autentificare și generarea token-urilor JWT
+var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
 builder.Services.AddAuthentication(options =>
 {
@@ -48,33 +58,42 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
+
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = false, // Dezactivăm temporar validarea pentru debugging
-        ValidateAudience = false,
-        ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero, // Eliminăm diferențele implicite
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("aVerySecureAndLongEnoughKey1234567890!"))
+        ValidateIssuer = true, // Activăm validarea pentru issuer
+        ValidateAudience = true, // Activăm validarea pentru audience
+        ValidateLifetime = true, // Validăm timpul de expirare
+        ClockSkew = TimeSpan.Zero, // Eliminăm diferențele implicite de timp
+        ValidateIssuerSigningKey = true, // Validăm cheia de semnare
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key)), // Folosim cheia secretă din setări
+        ValidIssuer = jwtSettings.Issuer, // Folosim Issuer din setări
+        ValidAudience = jwtSettings.Audience // Folosim Audience din setări
     };
 
     options.Events = new JwtBearerEvents
     {
         OnAuthenticationFailed = context =>
         {
+            // Gestionăm erorile de autentificare
             return Task.CompletedTask;
         }
     };
 });
 
+
+// Adăugăm suport pentru autorizare
 builder.Services.AddAuthorization();
 
+// Configurăm suportul pentru serializarea JSON, inclusiv pentru enum-uri
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
-// Configurare Swagger/OpenAPI
+
+// Configurăm Swagger pentru documentarea API-ului
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -87,7 +106,7 @@ builder.Services.AddSwaggerGen(c =>
         Type = SecuritySchemeType.ApiKey,
         Scheme = "bearer",
         BearerFormat = "JWT",
-        Description = "Introduceti 'Bearer' urmat de token"
+        Description = "Introduceți 'Bearer' urmat de token"
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -104,24 +123,31 @@ builder.Services.AddSwaggerGen(c =>
             new string[] { }
         }
     });
-    // Mapare pentru enum
-    c.MapType<RolUtilizator>(() => new OpenApiSchema
-    {
-        Type = "string",
-        Enum = Enum.GetNames(typeof(RolUtilizator)).Select(name => new OpenApiString(name)).ToArray()
-    });
+
+    // Adăugăm filtrul pentru metoda `SetAdmin`
+    c.OperationFilter<SetAdminDropdownFilter>();
+
 });
+
+
 
 var app = builder.Build();
 
-app.UseHttpsRedirection();
-app.UseRouting();
+using (var scope = app.Services.CreateScope())
+{
+    var userDropdownService = scope.ServiceProvider.GetRequiredService<IUserDropdownService>();
+    var usersForDropdown = await userDropdownService.GetUsersForDropdownAsync();
+    UserDropdownCache.PopulateUsers(usersForDropdown);
+}
 
-// Middleware-uri pentru autentificare și autorizare
+// Activăm redirecționarea la HTTPS
+app.UseHttpsRedirection();
+
+// Configurăm pipeline-ul pentru autentificare și autorizare
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Configurare pipeline pentru mediul de dezvoltare
+// Configurăm pipeline-ul pentru mediul de dezvoltare, incluzând Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -132,6 +158,8 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// Mapăm rutele pentru controlere
 app.MapControllers();
 
+// Pornim aplicația
 app.Run();

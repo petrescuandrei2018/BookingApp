@@ -4,6 +4,7 @@ using BookingApp.Models.Dtos;
 using BookingApp.Services.Abstractions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using BookingApp.Models;
 
 namespace BookingApp.Controllers
 {
@@ -11,10 +12,16 @@ namespace BookingApp.Controllers
     [ApiController]
     public class HotelController : ControllerBase
     {
+        // Răspuns general pentru toate metodele
         private ResponseDto _responseSMR;
+
+        // Serviciul pentru gestionarea hotelurilor
         private IHotelService _serviciuHotel;
+
+        // Serviciul pentru autentificare
         private readonly IAuthService _serviciuAutentificare;
 
+        // Constructor pentru inițializarea dependențelor
         public HotelController(AppDbContext database, IMapper mapper, IHotelService serviciuHotel, IAuthService serviciuAutentificare)
         {
             _responseSMR = new ResponseDto();
@@ -22,6 +29,7 @@ namespace BookingApp.Controllers
             _serviciuAutentificare = serviciuAutentificare;
         }
 
+        // Endpoint pentru înregistrarea unui utilizator nou
         [HttpPost]
         [Route("register")]
         public async Task<ResponseDto> Inregistreaza([FromBody] UserDto userDto)
@@ -35,6 +43,7 @@ namespace BookingApp.Controllers
 
             try
             {
+                // Crearea unui utilizator nou
                 var utilizatorNou = await _serviciuAutentificare.RegisterUser(userDto);
 
                 _responseSMR.IsSuccess = true;
@@ -57,6 +66,7 @@ namespace BookingApp.Controllers
             return _responseSMR;
         }
 
+        // Endpoint pentru obținerea tuturor hotelurilor
         [HttpGet]
         [Route("GetAllHotels")]
         public async Task<ResponseDto> GetAllHotels()
@@ -74,6 +84,7 @@ namespace BookingApp.Controllers
             return _responseSMR;
         }
 
+        // Endpoint pentru obținerea hotelurilor după filtru de nume
         [HttpGet]
         [Route("GetAllHotels/{filtruNume?}")]
         public async Task<ResponseDto> GetAllHotels(string? filtruNume)
@@ -91,6 +102,7 @@ namespace BookingApp.Controllers
             return _responseSMR;
         }
 
+        // Endpoint protejat pentru obținerea tuturor tipurilor de camere din hoteluri
         [Authorize]
         [HttpGet]
         [Route("GetAllHotelsTipCamere")]
@@ -109,6 +121,7 @@ namespace BookingApp.Controllers
             return _responseSMR;
         }
 
+        // Endpoint pentru filtrarea hotelurilor după tipul camerei și capacitate
         [HttpGet]
         [Route("GetHotelsTipCamere/{filtruNumeHotel?}/{capacitatePersoane?}")]
         public async Task<ResponseDto> GetAllHotelsTipCamere(string? filtruNumeHotel = "", int? capacitatePersoane = 0)
@@ -126,6 +139,7 @@ namespace BookingApp.Controllers
             return _responseSMR;
         }
 
+        // Endpoint pentru obținerea tuturor camerelor cu prețuri din hoteluri
         [HttpGet]
         [Route("GetAllHotelsTipCamerePret")]
         public async Task<ResponseDto> GetAllHotelsTipCamerePret()
@@ -143,6 +157,7 @@ namespace BookingApp.Controllers
             return _responseSMR;
         }
 
+        // Endpoint pentru obținerea camerelor după filtrul de preț, nume și capacitate
         [HttpGet]
         [Route("GetHotelsTipCamerePret/{filtruNumeHotel?}/{capacitatePersoane?}/{pretCamera?}")]
         public async Task<ResponseDto> GetAllHotelsTipCamerePret(string? filtruNumeHotel = "", int? capacitatePersoane = 0, float? pretCamera = 0)
@@ -160,6 +175,7 @@ namespace BookingApp.Controllers
             return _responseSMR;
         }
 
+        // Endpoint pentru obținerea hotelurilor pe baza ratingului
         [HttpGet]
         [Route("GetAllHotelsWithRatings/{rating?}")]
         public async Task<ResponseDto> GetAllHotelsWithRatings(double? rating)
@@ -177,6 +193,7 @@ namespace BookingApp.Controllers
             return _responseSMR;
         }
 
+        // Endpoint pentru crearea unei rezervări noi
         [HttpPost]
         [Route("CreateRezervare")]
         [Authorize]
@@ -221,6 +238,7 @@ namespace BookingApp.Controllers
             return response;
         }
 
+        // Endpoint pentru obținerea tuturor rezervărilor
         [HttpGet]
         [Route("GetAllRezervari")]
         public async Task<ResponseDto> GetAllRezervari()
@@ -238,6 +256,7 @@ namespace BookingApp.Controllers
             return _responseSMR;
         }
 
+        // Endpoint protejat pentru obținerea rezervărilor neexpirate
         [Authorize]
         [HttpGet]
         [Route("GetNonExpiredRezervari")]
@@ -257,6 +276,7 @@ namespace BookingApp.Controllers
             return _responseSMR;
         }
 
+        // Endpoint pentru autentificarea utilizatorilor
         [HttpPost]
         [Route("login")]
         public IActionResult Login([FromBody] LogInDto logInDto)
@@ -284,5 +304,97 @@ namespace BookingApp.Controllers
                 result = token
             });
         }
+
+        /// <summary>
+        /// Modifică rolul unui utilizator (Admin/User)
+        /// </summary>
+        /// <param name="userId">ID-ul utilizatorului selectat</param>
+        /// <param name="isAdmin">True pentru Admin, False pentru User</param>
+        [Authorize(Roles = "Admin")]
+        [HttpPut]
+        [Route("SetAdmin")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> SetAdmin(int userId, bool isAdmin)
+        {
+            try
+            {
+                // Verificăm dacă utilizatorul există în baza de date
+                var user = await _serviciuAutentificare.GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    return NotFound(new { Message = "Utilizatorul nu a fost găsit." });
+                }
+
+                // Actualizăm rolul utilizatorului
+                user.Rol = isAdmin ? RolUtilizator.Admin : RolUtilizator.User;
+
+                // Salvăm modificările în baza de date
+                var success = await _serviciuAutentificare.UpdateUserAsync(user);
+                if (!success)
+                {
+                    return StatusCode(500, new { Message = "A apărut o eroare la salvarea modificărilor." });
+                }
+
+                return Ok(new { Message = $"Rolul utilizatorului {user.UserName} a fost actualizat cu succes." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = $"A apărut o eroare: {ex.Message}" });
+            }
+        }
+
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet]
+        [Route("GetAllUsers")]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            try
+            {
+                // Preluăm lista de utilizatori din serviciul de autentificare
+                var users = await _serviciuAutentificare.GetAllUsersAsync();
+
+                // Mapăm utilizatorii în DTO-uri pentru a returna doar informațiile relevante
+                var result = users.Select(user => new
+                {
+                    Id = user.UserId,
+                    Name = user.UserName,
+                    Email = user.Email,
+                    Rol = user.Rol.ToString() // Convertim enum-ul în string
+                }).ToList();
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = $"A apărut o eroare: {ex.Message}" });
+            }
+        }
+
+        [HttpGet]
+        [Route("GetUsersForDropdown")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUsersForDropdown()
+        {
+            try
+            {
+                // Preluăm utilizatorii din baza de date
+                var users = await _serviciuAutentificare.GetAllUsersAsync();
+
+                // Transformăm utilizatorii într-un format simplu pentru dropdown
+                var userDropdownList = users.Select(u => new
+                {
+                    Value = u.UserId, // ID-ul utilizatorului
+                    Label = $"{u.UserId} - {u.UserName} ({u.Rol})" // Textul afișat
+                }).ToList();
+
+                return Ok(userDropdownList);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = $"A apărut o eroare: {ex.Message}" });
+            }
+        }
+
     }
 }
