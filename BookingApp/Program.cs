@@ -98,6 +98,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "BookingApp API", Version = "v1" });
+    c.EnableAnnotations(); // Activează suportul pentru adnotări
+
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -143,6 +145,9 @@ using (var scope = app.Services.CreateScope())
 // Activăm redirecționarea la HTTPS
 app.UseHttpsRedirection();
 
+// **Adăugăm suport pentru servirea fișierelor statice din wwwroot**
+app.UseStaticFiles(); // Permite servirea fișierelor statice, inclusiv custom-swagger.js
+
 // Configurăm pipeline-ul pentru autentificare și autorizare
 app.UseAuthentication();
 app.UseAuthorization();
@@ -154,7 +159,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "BookingApp API V1");
+        c.InjectJavascript("/swagger/custom-swagger.js");
         c.RoutePrefix = "swagger";
+
+        // Adaugă cod inline pentru testare
+        //c.HeadContent += "<script>console.log('Script inline funcționează!'); alert('Script inline încărcat!');</script>";
+
     });
 }
 

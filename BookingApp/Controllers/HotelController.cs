@@ -5,6 +5,8 @@ using BookingApp.Services.Abstractions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using BookingApp.Models;
+using Swashbuckle.AspNetCore.Annotations;
+using BookingApp.Helpers;
 
 namespace BookingApp.Controllers
 {
@@ -310,10 +312,10 @@ namespace BookingApp.Controllers
         /// </summary>
         /// <param name="userId">ID-ul utilizatorului selectat</param>
         /// <param name="isAdmin">True pentru Admin, False pentru User</param>
-        [Authorize(Roles = "Admin")]
         [HttpPut]
         [Route("SetAdmin")]
         [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "SetAdmin")]
         public async Task<IActionResult> SetAdmin(int userId, bool isAdmin)
         {
             try
@@ -394,6 +396,20 @@ namespace BookingApp.Controllers
             {
                 return StatusCode(500, new { Message = $"A apărut o eroare: {ex.Message}" });
             }
+        }
+
+        [HttpGet("GetDropdownUsers")]
+        [ApiExplorerSettings(IgnoreApi = true)] // Ascunde acest endpoint din Swagger
+        public IActionResult GetDropdownUsers()
+        {
+            // Simulează obținerea listei de utilizatori
+            var utilizatori = UserDropdownCache.Users.Select(u => new
+            {
+                Id = u.UserId,
+                DisplayName = $"{u.DisplayName}"
+            }).ToList();
+
+            return Ok(utilizatori);
         }
 
     }

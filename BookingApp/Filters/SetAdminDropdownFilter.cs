@@ -1,27 +1,23 @@
-﻿using BookingApp.Helpers;
-using Microsoft.OpenApi.Any;
+﻿using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using System.Linq;
 
 public class SetAdminDropdownFilter : IOperationFilter
 {
     public void Apply(OpenApiOperation operation, OperationFilterContext context)
     {
-        if (operation.OperationId == "SetAdmin") // Filtrăm doar metoda SetAdmin
+        if (operation.OperationId == "SetAdmin")
         {
-            // Folosim datele din cache
-            var users = UserDropdownCache.Users;
-
             var userIdParameter = operation.Parameters.FirstOrDefault(p => p.Name == "userId");
-            if (userIdParameter != null && users.Any())
+            if (userIdParameter != null)
             {
-                userIdParameter.Schema.Enum = users.Select(u =>
-                    new OpenApiString(u.DisplayName))
-                    .Cast<IOpenApiAny>()
-                    .ToList();
+                // Configurăm pentru a folosi un endpoint dinamic
+                userIdParameter.Extensions.Add("x-extensible-enum", new OpenApiObject
+                {
+                    ["fetch"] = new OpenApiString("/GetDropdownUsers") // Endpoint-ul dinamic
+                });
 
-                userIdParameter.Description = "Selectați un utilizator din lista generată.";
+                userIdParameter.Description = "Selectați un utilizator din lista dinamică.";
             }
         }
     }
