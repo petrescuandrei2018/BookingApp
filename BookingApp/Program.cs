@@ -23,6 +23,18 @@ using Microsoft.OpenApi.Any;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configurează furnizorii de logare
+builder.Logging.ClearProviders(); // Curăță furnizorii existenți
+builder.Logging.AddConsole(options =>
+{
+    options.LogToStandardErrorThreshold = LogLevel.Trace; // Setăm nivelul minim la Information
+});
+builder.Logging.SetMinimumLevel(LogLevel.Trace); // Setăm nivelul minim global la Information
+
+// Test de logare
+var logger = builder.Logging.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
+logger.LogInformation("Test de logare din Program.cs");
+
 // Înregistrăm configurațiile JWT
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
@@ -167,6 +179,9 @@ if (app.Environment.IsDevelopment())
 
     });
 }
+
+// Adăugăm middleware-ul pentru rutare explicit, deși nu e necesar dacă folosești app.MapControllers()
+app.UseRouting();
 
 // Mapăm rutele pentru controlere
 app.MapControllers();

@@ -159,8 +159,32 @@ namespace BookingApp.Services
         /// </summary>
         public async Task<User?> GetUserByIdAsync(int userId)
         {
-            return await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+            try
+            {
+                Console.WriteLine($"[GetUserByIdAsync] Început metodă - userId: {userId}");
+
+                var user = await _context.Users
+                    .AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
+
+                if (user == null)
+                {
+                    Console.WriteLine($"[GetUserByIdAsync] Utilizatorul cu userId: {userId} nu a fost găsit în baza de date.");
+                }
+                else
+                {
+                    Console.WriteLine($"[GetUserByIdAsync] Utilizator găsit - userId: {user.UserId}, userName: {user.UserName}, rol: {user.Rol}");
+                }
+
+                return user;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetUserByIdAsync] Eroare: {ex.Message}");
+                throw;
+            }
         }
+
+
 
         /// <summary>
         /// Actualizează un utilizator existent.
@@ -169,15 +193,22 @@ namespace BookingApp.Services
         {
             try
             {
+                Console.WriteLine($"[UpdateUserAsync] Început metodă - userId: {user.UserId}, rol: {user.Rol}");
+
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
-                return true; // Modificarea a fost salvată cu succes
+
+                Console.WriteLine($"[UpdateUserAsync] Modificările au fost salvate pentru utilizatorul: {user.UserId}");
+                return true;
             }
-            catch
+            catch (Exception ex)
             {
-                return false; // A apărut o eroare
+                Console.WriteLine($"[UpdateUserAsync] Eroare la salvarea modificărilor pentru utilizatorul: {user.UserId}. Eroare: {ex.Message}");
+                return false;
             }
         }
+
+
 
         public async Task<List<User>> GetAllUsersAsync()
         {
