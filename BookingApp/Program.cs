@@ -109,9 +109,10 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "BookingApp API", Version = "v1" });
     c.EnableAnnotations(); // Activează suportul pentru adnotări
 
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "BookingApp API", Version = "v1" });
+    c.EnableAnnotations();
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -138,14 +139,23 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 
-    // Adăugăm filtrul pentru metoda `SetAdmin`
-    c.OperationFilter<SetAdminDropdownFilter>();
+    // Include XML comments
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    c.IncludeXmlComments(xmlPath);
 
+    // Adaugă operation filter-ul
+    c.OperationFilter<SetAdminOperationFilter>();
 });
 
 
 
+
+
 var app = builder.Build();
+
+Console.WriteLine("Consola afiseaza"); // Adaugă acest mesaj pentru a testa consola
+
 
 using (var scope = app.Services.CreateScope())
 {
@@ -156,6 +166,14 @@ using (var scope = app.Services.CreateScope())
 
 // Activăm redirecționarea la HTTPS
 app.UseHttpsRedirection();
+
+// Middleware pentru logare a cererilor HTTP
+app.Use(async (context, next) =>
+{
+    Console.WriteLine($"[Middleware] Cerere primită: {context.Request.Method} {context.Request.Path}");
+    Console.WriteLine($"[Middleware] QueryString: {context.Request.QueryString}");
+    await next();
+});
 
 // **Adăugăm suport pentru servirea fișierelor statice din wwwroot**
 app.UseStaticFiles(); // Permite servirea fișierelor statice, inclusiv custom-swagger.js
@@ -173,6 +191,8 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "BookingApp API V1");
         c.InjectJavascript("/swagger/custom-swagger.js");
         c.RoutePrefix = "swagger";
+        c.EnableDeepLinking();
+        c.DisplayRequestDuration();
 
         // Adaugă cod inline pentru testare
         //c.HeadContent += "<script>console.log('Script inline funcționează!'); alert('Script inline încărcat!');</script>";
@@ -185,6 +205,8 @@ app.UseRouting();
 
 // Mapăm rutele pentru controlere
 app.MapControllers();
+
+
 
 // Pornim aplicația
 app.Run();

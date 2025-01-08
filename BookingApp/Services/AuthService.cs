@@ -161,28 +161,23 @@ namespace BookingApp.Services
         {
             try
             {
-                Console.WriteLine($"[GetUserByIdAsync] Început metodă - userId: {userId}");
-
-                var user = await _context.Users
-                    .AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
+                Console.WriteLine($"[GetUserByIdAsync] Interogare pentru userId: {userId}");
+                var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
 
                 if (user == null)
-                {
-                    Console.WriteLine($"[GetUserByIdAsync] Utilizatorul cu userId: {userId} nu a fost găsit în baza de date.");
-                }
+                    Console.WriteLine($"[GetUserByIdAsync] Utilizatorul cu ID {userId} nu a fost găsit.");
                 else
-                {
-                    Console.WriteLine($"[GetUserByIdAsync] Utilizator găsit - userId: {user.UserId}, userName: {user.UserName}, rol: {user.Rol}");
-                }
+                    Console.WriteLine($"[GetUserByIdAsync] Utilizator găsit: {user.UserId}, Nume: {user.UserName}, Rol: {user.Rol}");
 
                 return user;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetUserByIdAsync] Eroare: {ex.Message}");
+                Console.WriteLine($"[GetUserByIdAsync] Eroare la interogare: {ex.Message}");
                 throw;
             }
         }
+
 
 
 

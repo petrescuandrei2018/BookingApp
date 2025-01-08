@@ -308,99 +308,109 @@ namespace BookingApp.Controllers
         }
 
         /// <summary>
-        /// Modifică rolul unui utilizator (Admin/User)
+        /// Modifică rolul unui utilizator.
         /// </summary>
-        /// <param name="userId">ID-ul utilizatorului selectat</param>
-        /// <param name="isAdmin">True pentru Admin, False pentru User</param>
+        /// <param name="userId">ID-ul utilizatorului care va fi modificat.</param>
+        /// <param name="isAdmin">Setează <c>true</c> pentru Admin, <c>false</c> pentru User.</param>
+
         [HttpPut]
         [Route("SetAdmin")]
-        [SwaggerOperation(OperationId = "SetAdmin")]
-        public async Task<IActionResult> SetAdmin(int userId, bool isAdmin)
+        [SwaggerOperation(
+    Summary = "Modifică rolul unui utilizator.",
+    Description = "Setează rolul unui utilizator la Admin sau User.",
+    OperationId = "SetAdmin"
+)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> SetAdmin([FromQuery] int userId, [FromQuery] bool isAdmin)
         {
-            Console.WriteLine("Start metoda SetAdmin");
+            Console.WriteLine("[SetAdmin] ==== Începerea metodei SetAdmin ====");
+            Console.WriteLine($"[SetAdmin] Parametrii primiți: userId={userId}, isAdmin={isAdmin}");
+
+            if (userId <= 0)
+            {
+                Console.WriteLine("[SetAdmin] Eroare: userId nu este valid (<= 0).");
+                return BadRequest(new { Message = "ID-ul utilizatorului nu este valid." });
+            }
 
             try
             {
-                // Log pentru a verifica valoarea userId primit în cerere
-                Console.WriteLine($"[SetAdmin] userId primit din cerere: {userId}");
-                Console.WriteLine($"[SetAdmin] isAdmin primit din cerere: {isAdmin}");
-
-                // Log pentru a afișa interogarea SQL care va fi executată
-                Console.WriteLine($"[SetAdmin] Query: SELECT * FROM Users WHERE UserId = {userId}");
-
-                // Verificăm dacă utilizatorul există în baza de date
+                Console.WriteLine("[SetAdmin] Verificăm existența utilizatorului...");
                 var user = await _serviciuAutentificare.GetUserByIdAsync(userId);
+
                 if (user == null)
                 {
-                    Console.WriteLine($"[SetAdmin] Utilizatorul cu userId: {userId} nu a fost găsit.");
+                    Console.WriteLine($"[SetAdmin] Utilizatorul cu userId={userId} nu a fost găsit.");
                     return NotFound(new { Message = "Utilizatorul nu a fost găsit." });
                 }
 
-                Console.WriteLine($"[SetAdmin] Utilizator găsit - userId: {user.UserId}, userName: {user.UserName}, rol: {user.Rol}");
-
-                // Actualizăm rolul utilizatorului
+                Console.WriteLine($"[SetAdmin] Utilizator găsit: {user.UserName}, Rol curent: {user.Rol}");
                 user.Rol = isAdmin ? RolUtilizator.Admin : RolUtilizator.User;
                 Console.WriteLine($"[SetAdmin] Rolul utilizatorului va fi setat la: {user.Rol}");
 
-                // Salvăm modificările în baza de date
+                Console.WriteLine("[SetAdmin] Salvăm modificările...");
                 var success = await _serviciuAutentificare.UpdateUserAsync(user);
+
                 if (!success)
                 {
                     Console.WriteLine("[SetAdmin] Eroare la salvarea modificărilor.");
                     return StatusCode(500, new { Message = "A apărut o eroare la salvarea modificărilor." });
                 }
 
-                Console.WriteLine($"[SetAdmin] Modificări salvate cu succes pentru utilizatorul: {user.UserId}");
+                Console.WriteLine($"[SetAdmin] Modificări salvate cu succes pentru utilizatorul {user.UserId} ({user.UserName}).");
                 return Ok(new { Message = $"Rolul utilizatorului {user.UserName} a fost actualizat cu succes." });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SetAdmin] Eroare: {ex.Message}");
+                Console.WriteLine($"[SetAdmin] Eroare neașteptată: {ex.Message}");
                 return StatusCode(500, new { Message = $"A apărut o eroare: {ex.Message}" });
             }
         }
 
-
-
-
-
-
-        /*[Authorize]*/
         [HttpGet]
         [Route("GetAllUsers")]
         public async Task<IActionResult> GetAllUsers()
         {
+            Console.WriteLine("[GetAllUsers] ==== Începerea metodei GetAllUsers ====");
+
             try
             {
-                // Preluăm lista de utilizatori din serviciul de autentificare
+                Console.WriteLine("[GetAllUsers] Preluăm lista de utilizatori din serviciul de autentificare...");
                 var users = await _serviciuAutentificare.GetAllUsersAsync();
 
-                // Mapăm utilizatorii în DTO-uri pentru a returna doar informațiile relevante
+                Console.WriteLine($"[GetAllUsers] {users.Count} utilizatori găsiți.");
                 var result = users.Select(user => new
                 {
                     Id = user.UserId,
                     Name = user.UserName,
                     Email = user.Email,
-                    Rol = user.Rol.ToString() // Convertim enum-ul în string
+                    Rol = user.Rol.ToString()
                 }).ToList();
+
+                foreach (var user in result)
+                {
+                    Console.WriteLine($"[GetAllUsers] Utilizator: Id={user.Id}, Name={user.Name}, Email={user.Email}, Rol={user.Rol}");
+                }
 
                 return Ok(result);
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[GetAllUsers] Eroare neașteptată: {ex.Message}");
                 return StatusCode(500, new { Message = $"A apărut o eroare: {ex.Message}" });
             }
         }
 
         [HttpGet]
         [Route("GetUsersForDropdown")]
-        /*[Authorize]*/
         public async Task<IActionResult> GetUsersForDropdown()
         {
-            Console.WriteLine($"[GetUsersForDropdown] Se încearcă obținerea utilizatorilor pentru dropdown.");
+            Console.WriteLine("[GetUsersForDropdown] ==== Începerea metodei GetUsersForDropdown ====");
 
             try
             {
+                Console.WriteLine("[GetUsersForDropdown] Preluăm utilizatorii din serviciul de autentificare...");
                 var users = await _serviciuAutentificare.GetAllUsersAsync();
                 Console.WriteLine($"[GetUsersForDropdown] {users.Count} utilizatori găsiți.");
 
@@ -419,25 +429,29 @@ namespace BookingApp.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[GetUsersForDropdown] Eroare: {ex.Message}");
+                Console.WriteLine($"[GetUsersForDropdown] Eroare neașteptată: {ex.Message}");
                 return StatusCode(500, new { Message = $"A apărut o eroare: {ex.Message}" });
             }
         }
 
-
         [HttpGet("GetDropdownUsers")]
-        [ApiExplorerSettings(IgnoreApi = true)] // Ascunde acest endpoint din Swagger
+        [ApiExplorerSettings(IgnoreApi = true)]
         public IActionResult GetDropdownUsers()
         {
-            // Simulează obținerea listei de utilizatori
+            Console.WriteLine("[GetDropdownUsers] ==== Începerea metodei GetDropdownUsers ====");
+
             var utilizatori = UserDropdownCache.Users.Select(u => new
             {
                 Id = u.UserId,
                 DisplayName = $"{u.DisplayName}"
             }).ToList();
 
+            foreach (var user in utilizatori)
+            {
+                Console.WriteLine($"[GetDropdownUsers] Utilizator dropdown: Id={user.Id}, DisplayName={user.DisplayName}");
+            }
+
             return Ok(utilizatori);
         }
-
     }
 }
