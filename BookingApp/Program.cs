@@ -58,7 +58,6 @@ builder.Services.AddHostedService<RezervareServiciuActualizare>();
 builder.Services.AddScoped<IUserDropdownService, UserDropdownService>();
 builder.Services.AddTransient<SetAdminDropdownFilter>();
 
-
 // Configurare pentru autentificare și generarea token-urilor JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));

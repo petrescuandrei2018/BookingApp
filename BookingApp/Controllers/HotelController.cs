@@ -312,18 +312,18 @@ namespace BookingApp.Controllers
         /// </summary>
         /// <param name="userId">ID-ul utilizatorului care va fi modificat.</param>
         /// <param name="isAdmin">Setează <c>true</c> pentru Admin, <c>false</c> pentru User.</param>
-
-        [HttpPut]
-        [Route("SetAdmin")]
+        [HttpPut("SetAdmin")]
         [SwaggerOperation(
-    Summary = "Modifică rolul unui utilizator.",
-    Description = "Setează rolul unui utilizator la Admin sau User.",
-    OperationId = "SetAdmin"
-)]
+            Summary = "Modifică rolul unui utilizator.",
+            Description = "Setează rolul unui utilizator la Admin sau User.",
+            OperationId = "SetAdmin"
+        )]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> SetAdmin([FromQuery] int userId, [FromQuery] bool isAdmin)
+        public async Task<IActionResult> SetAdmin(
+            [FromQuery, SwaggerParameter("ID-ul utilizatorului", Required = true)] int userId,
+            [FromQuery, SwaggerParameter("Setare Admin (true/false)", Required = true)] bool isAdmin)
         {
             Console.WriteLine("[SetAdmin] ==== Începerea metodei SetAdmin ====");
             Console.WriteLine($"[SetAdmin] Parametrii primiți: userId={userId}, isAdmin={isAdmin}");
@@ -367,6 +367,7 @@ namespace BookingApp.Controllers
                 return StatusCode(500, new { Message = $"A apărut o eroare: {ex.Message}" });
             }
         }
+
 
         [HttpGet]
         [Route("GetAllUsers")]
