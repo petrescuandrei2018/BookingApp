@@ -19,6 +19,7 @@ using BCrypt.Net;
 using System.Linq;
 using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Any;
+using BookingApp.Swagger;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -108,6 +109,9 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
+    c.SchemaFilter<CustomAttributeSchemaFilter>();
+
+
     c.EnableAnnotations(); // Activează suportul pentru adnotări
 
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "BookingApp API", Version = "v1" });

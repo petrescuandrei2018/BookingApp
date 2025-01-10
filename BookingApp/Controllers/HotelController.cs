@@ -321,9 +321,7 @@ namespace BookingApp.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> SetAdmin(
-            [FromQuery, SwaggerParameter("ID-ul utilizatorului", Required = true)] int userId,
-            [FromQuery, SwaggerParameter("Setare Admin (true/false)", Required = true)] bool isAdmin)
+        public async Task<IActionResult> SetAdmin([FromQuery] int userId, [FromQuery] bool isAdmin)
         {
             Console.WriteLine("[SetAdmin] ==== Începerea metodei SetAdmin ====");
             Console.WriteLine($"[SetAdmin] Parametrii primiți: userId={userId}, isAdmin={isAdmin}");

@@ -1,6 +1,4 @@
-﻿console.log("[custom-swagger.js] Script încărcat! Inițializare începe...");
-
-// Funcție pentru așteptarea unui element în DOM
+﻿// Funcție pentru așteptarea unui element să fie disponibil în DOM
 function waitForElement(selector, callback) {
     const interval = setInterval(() => {
         const element = document.querySelector(selector);
@@ -11,7 +9,131 @@ function waitForElement(selector, callback) {
     }, 500);
 }
 
-// Înlocuiește input-ul cu un dropdown și păstrează input-ul ascuns
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("[custom-swagger.js] DOM-ul este complet încărcat. Inițializarea începe...");
+
+   // setCustomAttributesFromSchema();
+
+    const observer = new MutationObserver(() => {
+        const selects = document.querySelectorAll('select');
+        if (selects.length > 0) {
+            console.log("[DEBUG] Select-uri detectate în DOM:");
+            let isAdminFound = false;
+            let userIdFound = false;
+
+            selects.forEach((select, index) => {
+                const options = Array.from(select.options).map(option => option.value);
+
+                if (options.includes('true') && options.includes('false')) {
+                    console.log(`[DEBUG] Dropdown-ul 'isAdmin' detectat la index ${index}:`, select.outerHTML);
+                    select.setAttribute('data-is-admin', 'true');
+                    select.removeAttribute('disabled');
+                    isAdminFound = true;
+                }
+
+                if (select.id === 'userDropdown' || options.some(opt => !isNaN(opt))) {
+                    console.log(`[DEBUG] Dropdown-ul 'userId' detectat la index ${index}:`, select.outerHTML);
+                    select.setAttribute('data-user-id', 'true');
+                    select.removeAttribute('disabled');
+                    userIdFound = true;
+                }
+            });
+
+            if (isAdminFound && userIdFound) {
+                console.log("[DEBUG] Dropdown-urile `isAdmin` și `userId` au fost detectate. Observatorul va fi oprit.");
+                observer.disconnect();
+            }
+        }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    console.log("[custom-swagger.js] Observatorul DOM a fost configurat.");
+    replaceInputWithDropdown();
+    observeExecuteButton();
+});
+
+// Funcție pentru extragerea valorii numerice din text
+function extractNumericValue(value) {
+    const numericMatch = value.match(/^\d+/); // Caută prima valoare numerică
+    return numericMatch ? parseInt(numericMatch[0], 10) : null;
+}
+
+// Funcție pentru popularea dropdown-ului cu utilizatori
+function populateDropdown(dropdown) {
+    fetch('/api/Hotel/GetUsersForDropdown')
+        .then(response => response.json())
+        .then(users => {
+            console.log("[DEBUG] Utilizatori pentru dropdown:", users);
+
+            dropdown.innerHTML = '<option value="">Selectează un utilizator</option>';
+
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.value; // ID numeric
+                option.textContent = `${user.value} - ${user.label}`;
+                dropdown.appendChild(option);
+            });
+
+            console.log("[DEBUG] Structură dropdown userId după populare:", dropdown.outerHTML);
+        })
+        .catch(error => console.error("[ERROR] Nu s-a putut popula dropdown-ul:", error));
+}
+
+// Funcție pentru monitorizarea butonului "Execute"
+function observeExecuteButton() {
+    waitForElement('.btn.execute', (button) => {
+        console.log("[DEBUG] Buton Execute detectat:", button);
+
+        button.addEventListener("click", (event) => {
+            console.log("[DEBUG] Buton Execute apăsat.");
+
+            const userIdSelect = document.querySelector('select[data-user-id="true"]');
+            if (!userIdSelect) {
+                console.error("[ERROR] Nu s-a găsit dropdown-ul pentru userId.");
+                alert("Dropdown-ul pentru userId nu a fost găsit.");
+                return;
+            }
+
+            const rawValue = userIdSelect.value || '';
+            const userId = extractNumericValue(rawValue);
+
+            if (!userId || isNaN(userId)) {
+                console.error("[ERROR] Valoare invalidă pentru `userId`:", rawValue);
+                alert("Te rugăm să selectezi un utilizator valid.");
+                event.preventDefault();
+                return;
+            }
+
+            console.log("[DEBUG] Valoare userId selectată:", userId);
+
+            const isAdminSelect = document.querySelector('select[data-is-admin="true"]');
+            if (!isAdminSelect) {
+                console.error("[ERROR] Nu s-a găsit elementul <select> pentru isAdmin.");
+                alert("Nu s-a putut detecta câmpul pentru isAdmin.");
+                return;
+            }
+
+            const isAdmin = isAdminSelect.value;
+            if (!isAdmin || isAdmin === "") {
+                console.error("[ERROR] Nu a fost selectată nicio valoare pentru `isAdmin`.");
+                alert("Te rugăm să selectezi o valoare pentru isAdmin.");
+                event.preventDefault();
+                return;
+            }
+
+            console.log("[DEBUG] Valoare isAdmin selectată:", isAdmin);
+
+            // Construim URL-ul direct cu valorile găsite
+            const finalUrl = `https://localhost:7286/api/Hotel/SetAdmin?isAdmin=${isAdmin}&userId=${userId}`;
+            console.log("[DEBUG] URL generat:", finalUrl);
+
+            alert(`URL generat: ${finalUrl}`);
+        });
+    });
+}
+
+// Funcție pentru înlocuirea input-urilor cu dropdown-uri
 function replaceInputWithDropdown() {
     waitForElement('[placeholder="userId"]', (inputField) => {
         inputField.style.display = "none";
@@ -27,87 +149,6 @@ function replaceInputWithDropdown() {
 
         inputField.parentNode.insertBefore(selectDropdown, inputField.nextSibling);
 
-        observeExecuteButton(selectDropdown, document.querySelector('[placeholder="isAdmin"]'));
         populateDropdown(selectDropdown);
     });
 }
-
-// Monitorizează butonul "Execute" pentru a activa cererea
-function observeExecuteButton(dropdown) {
-    waitForElement('.btn.execute', (button) => {
-        console.log("[DEBUG] Buton Execute detectat:", button);
-
-        button.addEventListener("click", (event) => {
-            console.log("[DEBUG] Buton Execute apăsat.");
-
-            // Preluăm valorile selectate
-            const userId = dropdown.value;
-            console.log("[DEBUG] Valoare userId selectată:", userId);
-
-            const allSelects = document.querySelectorAll('select');
-            const isAdminInputField = allSelects[2]; // Index confirmat pentru isAdmin
-            if (!isAdminInputField) {
-                console.error("[ERROR] Nu s-a găsit input-ul pentru isAdmin.");
-                return;
-            }
-
-            const isAdmin = isAdminInputField.value;
-            console.log("[DEBUG] Valoare isAdmin selectată:", isAdmin);
-
-            // Verificăm dacă valorile sunt valide
-            if (!userId || !isAdmin) {
-                console.error("[ERROR] Valoarea userId sau isAdmin este invalidă.");
-                alert("Te rugăm să selectezi un utilizator și o valoare pentru isAdmin.");
-                event.preventDefault();
-                return;
-            }
-
-            // Interceptăm și rescriem cererea
-            interceptAndRewriteRequest(userId, isAdmin);
-        });
-    });
-}
-
-function interceptAndRewriteRequest(userId, isAdmin) {
-    const originalOpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function (method, url) {
-        console.log("[DEBUG] URL inițial al cererii:", url);
-
-        // Rescriem URL-ul cu parametrii corecți
-        const newUrl = url.replace(/userId=[^&]*/, `userId=${userId}`)
-            .replace(/isAdmin=[^&]*/, `isAdmin=${isAdmin}`);
-        console.log("[DEBUG] URL rescris:", newUrl);
-
-        // Continuăm cu cererea rescrisă
-        originalOpen.call(this, method, newUrl);
-    };
-}
-
-// Populează dropdown-ul cu datele din API
-function populateDropdown(dropdown) {
-    fetch('/api/Hotel/GetUsersForDropdown')
-        .then(response => {
-            if (!response.ok) {
-                return;
-            }
-            return response.json();
-        })
-        .then(users => {
-            if (!users || users.length === 0) {
-                return;
-            }
-            dropdown.innerHTML = '<option value="">Selectează un utilizator</option>';
-            users.forEach((user) => {
-                const option = document.createElement('option');
-                option.value = user.value;
-                option.textContent = `${user.value} - ${user.label}`;
-                dropdown.appendChild(option);
-            });
-        })
-        .catch(() => { });
-}
-
-// Asigură-te că DOM-ul Swagger este complet generat înainte de inițializare
-document.addEventListener('DOMContentLoaded', () => {
-    replaceInputWithDropdown();
-});
