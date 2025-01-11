@@ -19,6 +19,14 @@ namespace BookingApp.Repository
             _database = database;
         }
 
+        // Metodă pentru a actualiza o rezervare
+        public async Task ActualizeazaRezervareAsync(Rezervare rezervare)
+        {
+            _database.Rezervari.Update(rezervare); // Marchează rezervarea pentru actualizare
+            await _database.SaveChangesAsync(); // Salvează schimbările în baza de date
+        }
+
+
         // Metodă pentru adăugarea unei rezervări și actualizarea disponibilității camerelor
         public async Task/*<RezervareDto>*/ AdaugaRezervare(Rezervare rezervare, int tipCameraId)
         {
@@ -147,6 +155,14 @@ namespace BookingApp.Repository
         {
             var users = _database.Users.ToList();
             return users;
+        }
+
+        // Metodă pentru a obține o rezervare după ID
+        public async Task<Rezervare> GetRezervareByIdAsync(int rezervareId)
+        {
+            return await _database.Rezervari
+                .Include(r => r.PretCamera) // Încarcă și entitatea PretCamera asociată
+                .FirstOrDefaultAsync(r => r.RezervareId == rezervareId);
         }
     }
 }

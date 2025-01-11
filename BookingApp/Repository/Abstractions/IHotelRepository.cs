@@ -18,5 +18,8 @@ namespace BookingApp.Repository.Abstractions
 
         Task/*<RezervareDto>*/ AdaugaRezervare(Rezervare rezervare, int tipCameraId);
         Task<List<User>> GetAllUsers();
+        // Adăugăm metodele pentru rezervare
+        Task<Rezervare> GetRezervareByIdAsync(int rezervareId);
+        Task ActualizeazaRezervareAsync(Rezervare rezervare);
     }
 }

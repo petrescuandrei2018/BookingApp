@@ -3,19 +3,15 @@ using BookingApp.Models;
 using BookingApp.Models.Dtos;
 using BookingApp.Repository.Abstractions;
 using BookingApp.Services.Abstractions;
-using Microsoft.IdentityModel.Tokens;
 using System.Linq;
 
 namespace BookingApp.Services
 {
-    // Serviciu pentru gestionarea operațiunilor asupra hotelurilor
+    // Serviciu pentru gestionarea operațiunilor legate de hoteluri
     public class HotelService : IHotelService
     {
-        // Repository-ul utilizat pentru accesarea datelor despre hoteluri
         private readonly IHotelRepository _hotelRepository;
-
-        // Mapper pentru maparea entităților
-        private IMapper _mapper;
+        private readonly IMapper _mapper;
 
         // Constructor pentru injectarea dependențelor
         public HotelService(IHotelRepository hotelRepository, IMapper mapper)
@@ -24,24 +20,38 @@ namespace BookingApp.Services
             _mapper = mapper;
         }
 
-        // Crearea unei rezervări pornind de la DTO
+        // Metodă pentru procesarea plății Stripe pentru o rezervare
+        public async Task ProcesarePlataStripeAsync(int rezervareId)
+        {
+            // Obținem rezervarea pe baza ID-ului
+            var rezervare = await _hotelRepository.GetRezervareByIdAsync(rezervareId);
+            if (rezervare == null)
+            {
+                throw new Exception($"Rezervarea cu ID-ul {rezervareId} nu a fost găsită.");
+            }
+
+            // Actualizăm starea plății
+            rezervare.StarePlata = "Platita";
+            await _hotelRepository.ActualizeazaRezervareAsync(rezervare);
+        }
+
+        // Metodă pentru crearea unei rezervări pornind de la DTO
         public async Task<RezervareDto> CreateRezervareFromDto(RezervareDto rezervareDto)
         {
-            // Validare: CheckOut nu poate fi mai mic decât CheckIn
+            // Validare: CheckOut trebuie să fie după CheckIn
             if (rezervareDto.CheckOut < rezervareDto.CheckIn)
             {
                 throw new Exception("Data de CheckOut nu poate fi mai mică decât data de CheckIn.");
             }
 
-            // Verificăm dacă utilizatorul există
+            // Verificăm existența utilizatorului
             var users = await _hotelRepository.GetAllUsers();
-            var validUser = users.Any(x => x.UserId == rezervareDto.UserId);
-            if (!validUser)
+            if (!users.Any(x => x.UserId == rezervareDto.UserId))
             {
                 throw new Exception($"Utilizatorul cu ID {rezervareDto.UserId} nu există.");
             }
 
-            // Verificăm dacă prețul camerei este valid
+            // Verificăm existența camerei și disponibilitatea acesteia
             var pretCamere = await _hotelRepository.GetAllPretCamere();
             var validPretCamera = pretCamere.FirstOrDefault(x => x.PretCameraId == rezervareDto.PretCameraId);
             if (validPretCamera == null)
@@ -49,7 +59,6 @@ namespace BookingApp.Services
                 throw new Exception($"Camera cu ID {rezervareDto.PretCameraId} nu există.");
             }
 
-            // Verificăm disponibilitatea camerelor
             var hotelsTipCamere = await _hotelRepository.GetAllHotelsTipCamera();
             var rezervareTipCameraId = validPretCamera.TipCameraId;
 
@@ -63,128 +72,102 @@ namespace BookingApp.Services
                 throw new Exception($"Nu există camere disponibile pentru TipCameraId {rezervareTipCameraId}.");
             }
 
-            // Creăm rezervarea
+            // Mapăm DTO-ul în entitate
             var rezervare = _mapper.Map<Rezervare>(rezervareDto);
 
-            // Stabilim starea rezervării în funcție de datele CheckIn și CheckOut
-            if (rezervareDto.CheckOut < DateTime.UtcNow)
-            {
-                rezervare.Stare = StareRezervare.Expirata;
-            }
-            else if (rezervareDto.CheckIn <= DateTime.UtcNow && rezervareDto.CheckOut >= DateTime.UtcNow)
-            {
-                rezervare.Stare = StareRezervare.Activa;
-            }
-            else
-            {
-                rezervare.Stare = StareRezervare.Viitoare;
-            }
+            // Stabilim starea rezervării
+            rezervare.Stare = rezervareDto.CheckOut < DateTime.UtcNow
+                ? StareRezervare.Expirata
+                : rezervareDto.CheckIn <= DateTime.UtcNow
+                    ? StareRezervare.Activa
+                    : StareRezervare.Viitoare;
 
-            // Adăugăm rezervarea în baza de date
+            // Salvăm rezervarea
             await _hotelRepository.AdaugaRezervare(rezervare, rezervareTipCameraId);
 
             return rezervareDto;
         }
 
-        // Obține toate hotelurile
+        // Obține lista tuturor hotelurilor
         public async Task<List<ResponseHotelDto>> GetAllHotels()
         {
             var hotels = await _hotelRepository.GetAllHotels();
-            var hotelsResponse = _mapper.Map<List<ResponseHotelDto>>(hotels);
-            return hotelsResponse;
+            return _mapper.Map<List<ResponseHotelDto>>(hotels);
         }
 
-        // Obține toate hotelurile filtrate după nume
+        // Obține lista hotelurilor filtrată după nume
         public async Task<List<ResponseHotelDto>> GetAllHotels(string? filtruNume)
         {
-            List<ResponseHotelDto> responseHotelDtos = new List<ResponseHotelDto>();
             var hotels = await _hotelRepository.GetAllHotels();
-
             if (!string.IsNullOrEmpty(filtruNume))
             {
                 hotels = hotels.Where(x => x.Name == filtruNume).ToList();
             }
-
-            if (hotels.Any())
-            {
-                responseHotelDtos = _mapper.Map<List<ResponseHotelDto>>(hotels);
-            }
-
-            return responseHotelDtos;
+            return _mapper.Map<List<ResponseHotelDto>>(hotels);
         }
 
-        // Obține toate hotelurile împreună cu ratingul lor
+        // Obține lista hotelurilor împreună cu rating-urile acestora
         public async Task<List<HotelWithRating>> GetAllHotelsByRating(double? rating)
         {
             var hotels = await _hotelRepository.GetAllHotels();
-            List<HotelWithRating> hotelsWithRatings = new List<HotelWithRating>();
+            var reviews = await _hotelRepository.GetAllReviews();
 
-            foreach (var hotel in hotels)
+            return hotels.Select(hotel =>
             {
-                var reviews = await _hotelRepository.GetAllReviews();
-                var reviewsCount = reviews.Count(r => r.HotelId == hotel.HotelId);
-                var ratingMediu = reviews.Where(r => r.HotelId == hotel.HotelId).Sum(r => r.Rating);
+                var hotelReviews = reviews.Where(r => r.HotelId == hotel.HotelId);
+                var ratingMediu = hotelReviews.Any() ? hotelReviews.Average(r => r.Rating) : 0;
 
-                HotelWithRating hotelWithRating = new HotelWithRating
+                return new HotelWithRating
                 {
                     Address = hotel.Address,
                     HotelName = hotel.Name,
-                    ReviewuriTotale = reviewsCount,
-                    Rating = reviewsCount == 0 ? 0 : ratingMediu / reviewsCount
+                    ReviewuriTotale = hotelReviews.Count(),
+                    Rating = ratingMediu
                 };
-
-                if (hotelWithRating.Rating >= rating)
-                {
-                    hotelsWithRatings.Add(hotelWithRating);
-                }
-            }
-            return hotelsWithRatings;
+            })
+            .Where(hw => rating == null || hw.Rating >= rating)
+            .ToList();
         }
 
-        // Obține toate hotelurile împreună cu tipurile de camere
+        // Obține lista hotelurilor împreună cu tipurile de camere
         public async Task<List<HotelTipCamera>> GetAllHotelsTipCamera()
         {
-            var hotelsTipCamere = await _hotelRepository.GetAllHotelsTipCamera();
-            return hotelsTipCamere;
+            return await _hotelRepository.GetAllHotelsTipCamera();
         }
 
-        // Filtrează hotelurile după nume și capacitate persoane
+        // Obține lista hotelurilor împreună cu tipurile de camere, filtrată
         public async Task<List<HotelTipCamera>> GetAllHotelsTipCameraFiltered(string? filtruNumeHotel, int? capacitatePersoane)
         {
-            var hotelsTipCamere = new List<HotelTipCamera>();
-
-            if (!string.IsNullOrEmpty(filtruNumeHotel) && capacitatePersoane > 0)
+            var hotelsTipCamere = await _hotelRepository.GetAllHotelsTipCamera();
+            if (!string.IsNullOrEmpty(filtruNumeHotel) && capacitatePersoane.HasValue)
             {
-                hotelsTipCamere = await _hotelRepository.GetAllHotelsTipCamera();
-                hotelsTipCamere = hotelsTipCamere.Where(x => x.HotelName == filtruNumeHotel && x.CapacitatePersoane == capacitatePersoane).ToList();
+                hotelsTipCamere = hotelsTipCamere
+                    .Where(x => x.HotelName == filtruNumeHotel && x.CapacitatePersoane == capacitatePersoane)
+                    .ToList();
             }
             return hotelsTipCamere;
         }
 
-        // Obține toate hotelurile cu prețurile tipurilor de camere
+        // Obține lista hotelurilor împreună cu tipurile de camere și prețurile acestora
         public async Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPret()
         {
-            var hotelsTipCamerePret = await _hotelRepository.GetAllHotelsTipCameraPret();
-            return hotelsTipCamerePret;
+            return await _hotelRepository.GetAllHotelsTipCameraPret();
         }
 
-        // Filtrează hotelurile după nume, capacitate persoane și prețul camerei
+        // Obține lista hotelurilor împreună cu tipurile de camere și prețurile acestora, filtrată
         public async Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPretFiltered(string? filtruNumeHotel, int? capacitatePersoane, float? pretCamera)
         {
-            var hotelsTipCamerePret = new List<HotelTipCameraPret>();
-
-            if (!string.IsNullOrEmpty(filtruNumeHotel) && capacitatePersoane > 0 && pretCamera > 0)
+            var hotelsTipCamerePret = await _hotelRepository.GetAllHotelsTipCameraPret();
+            if (!string.IsNullOrEmpty(filtruNumeHotel) && capacitatePersoane.HasValue && pretCamera.HasValue)
             {
-                hotelsTipCamerePret = await _hotelRepository.GetAllHotelsTipCameraPret();
                 hotelsTipCamerePret = hotelsTipCamerePret
                     .Where(x => x.HotelName == filtruNumeHotel && x.CapacitatePersoane == capacitatePersoane && x.PretNoapte <= pretCamera)
                     .ToList();
             }
-
             return hotelsTipCamerePret;
         }
 
-        // Obține toate rezervările
+        // Obține lista tuturor rezervărilor
         public async Task<List<GetAllRezervariDto>> GetAllRezervariAsync()
         {
             var rezervari = await _hotelRepository.GetAllRezervariAsync();
@@ -192,88 +175,29 @@ namespace BookingApp.Services
             var pretCamere = await _hotelRepository.GetAllPretCamere();
             var tipCamere = await _hotelRepository.GetAllTipCamereAsync();
 
-            var rezervariDto = new List<GetAllRezervariDto>();
-
-            foreach (var rezervare in rezervari)
+            return rezervari.Select(rezervare =>
             {
                 var camera = pretCamere.FirstOrDefault(pc => pc.PretCameraId == rezervare.PretCameraId);
-                if (camera == null)
-                {
-                    throw new Exception($"Nu a fost găsită o cameră corespunzătoare pentru RezervareId: {rezervare.RezervareId}");
-                }
+                var tipCamera = tipCamere.FirstOrDefault(tc => tc.TipCameraId == camera?.TipCameraId);
+                var hotel = hotels.FirstOrDefault(h => h.HotelId == tipCamera?.HotelId);
 
-                var tipCamera = tipCamere.FirstOrDefault(tc => tc.TipCameraId == camera.TipCameraId);
-                if (tipCamera == null)
-                {
-                    throw new Exception($"Nu a fost găsit un tip de cameră corespunzător pentru PretCameraId: {camera.PretCameraId}");
-                }
-
-                var hotel = hotels.FirstOrDefault(h => h.HotelId == tipCamera.HotelId);
-                if (hotel == null)
-                {
-                    throw new Exception($"Nu a fost găsit un hotel corespunzător pentru TipCameraId: {tipCamera.TipCameraId}");
-                }
-
-                var rezervareDto = new GetAllRezervariDto
+                return new GetAllRezervariDto
                 {
                     UserId = rezervare.UserId,
-                    HotelName = hotel.Name,
+                    HotelName = hotel?.Name,
                     CheckIn = rezervare.CheckIn,
                     CheckOut = rezervare.CheckOut,
-                    Pret = (decimal)camera.PretNoapte,
+                    Pret = (decimal)(camera?.PretNoapte ?? 0),
                     Stare = rezervare.Stare.ToString(),
                 };
-
-                rezervariDto.Add(rezervareDto);
-            }
-
-            return rezervariDto;
+            }).ToList();
         }
 
-        // Obține rezervările care nu sunt expirate
+        // Obține lista rezervărilor care nu sunt expirate
         public async Task<List<GetAllRezervariDto>> GetNonExpiredRezervariAsync()
         {
-            var rezervari = await _hotelRepository.GetAllRezervariAsync();
-            var hoteluri = await _hotelRepository.GetAllHotels();
-            var preturiCamere = await _hotelRepository.GetAllPretCamere();
-            var tipuriCamere = await _hotelRepository.GetAllTipCamereAsync();
-
-            var rezervariDto = new List<GetAllRezervariDto>();
-
-            foreach (var rezervare in rezervari.Where(r => r.Stare != StareRezervare.Expirata))
-            {
-                var camera = preturiCamere.FirstOrDefault(pc => pc.PretCameraId == rezervare.PretCameraId);
-                if (camera == null)
-                {
-                    throw new Exception($"Nu a fost găsită o cameră asociată pentru RezervareId: {rezervare.RezervareId}");
-                }
-
-                var tipCamera = tipuriCamere.FirstOrDefault(tc => tc.TipCameraId == camera.TipCameraId);
-                if (tipCamera == null)
-                {
-                    throw new Exception($"Nu a fost găsit un TipCamera asociat pentru PretCameraId: {camera.PretCameraId}");
-                }
-
-                var hotel = hoteluri.FirstOrDefault(h => h.HotelId == tipCamera.HotelId);
-                if (hotel == null)
-                {
-                    throw new Exception($"Nu a fost găsit un Hotel asociat pentru TipCameraId: {tipCamera.TipCameraId}");
-                }
-
-                var rezervareDto = new GetAllRezervariDto
-                {
-                    UserId = rezervare.UserId,
-                    HotelName = hotel.Name,
-                    CheckIn = rezervare.CheckIn,
-                    CheckOut = rezervare.CheckOut,
-                    Pret = (decimal)camera.PretNoapte,
-                    Stare = rezervare.Stare.ToString(),
-                };
-
-                rezervariDto.Add(rezervareDto);
-            }
-
-            return rezervariDto;
+            var rezervari = await GetAllRezervariAsync();
+            return rezervari.Where(r => r.Stare != StareRezervare.Expirata.ToString()).ToList();
         }
     }
 }
