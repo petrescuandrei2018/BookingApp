@@ -45,6 +45,10 @@ IMapper mapper = MappingConfig.RegisterMaps().CreateMapper();
 builder.Services.AddSingleton(mapper);
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
+var cachePlati = new Dictionary<int, string>();
+builder.Services.AddSingleton(cachePlati);
+
+
 // Adăugăm serviciile proiectului în containerul de servicii
 builder.Services.AddScoped<IHotelRepository, HotelRepository>();
 builder.Services.AddScoped<IHotelService, HotelService>();
@@ -53,6 +57,10 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IServiciuPlata, ServiciuPlata>();
 builder.Services.AddScoped<IServiciuEmail, ServiciuEmail>();
 builder.Services.AddHostedService<RezervareServiciuActualizare>();
+
+// Adăugarea configurației Stripe
+builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe")); // StripeSettings trebuie să fie definit în proiect
+
 
 // Configurare pentru autentificare și generarea token-urilor JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
