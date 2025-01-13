@@ -124,7 +124,7 @@ namespace BookingApp.Controllers
                 if (userId != rezervareDto.UserId)
                 {
                     response.IsSuccess = false;
-                    response.Message = "Utilizatorul autentificat nu are permisiuni pentru această acțiune.";
+                    response.Message = $"Utilizatorul {userId} autentificat este diferit de utilizatorul {rezervareDto.UserId} pentru care se rezerva.";
                     return response;
                 }
                 response.Result = await _serviciuHotel.CreateRezervareFromDto(rezervareDto);
