@@ -1,7 +1,6 @@
-﻿using BookingApp.Migrations;
+﻿// IHotelRepository.cs
 using BookingApp.Models;
 using BookingApp.Models.Dtos;
-using PretCamera = BookingApp.Models.PretCamera;
 
 namespace BookingApp.Repository.Abstractions
 {
@@ -15,11 +14,10 @@ namespace BookingApp.Repository.Abstractions
         Task<List<PretCamera>> GetAllPretCamere();
         Task<List<Rezervare>> GetAllRezervariAsync();
         Task<List<TipCamera>> GetAllTipCamereAsync();
-
-        Task/*<RezervareDto>*/ AdaugaRezervare(Rezervare rezervare, int tipCameraId);
+        Task AdaugaRezervare(Rezervare rezervare, int tipCameraId);
         Task<List<User>> GetAllUsers();
-        // Adăugăm metodele pentru rezervare
         Task<Rezervare> GetRezervareByIdAsync(int rezervareId);
         Task ActualizeazaRezervareAsync(Rezervare rezervare);
+        Task ActualizeazaPreturiRezervareAsync(Rezervare rezervare);
     }
 }

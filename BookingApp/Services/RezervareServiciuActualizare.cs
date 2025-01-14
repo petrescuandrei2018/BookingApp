@@ -56,6 +56,32 @@ namespace BookingApp.Services
                             tipCamera.NrCamereOcupate--;
                         }
                     }
+
+                    // Calculăm numărul de nopți pentru rezervare
+                    var numarNopti = (rezervare.CheckOut - rezervare.CheckIn).Days;
+
+                    // Verificăm dacă numărul de nopți este valid
+                    if (numarNopti <= 0)
+                    {
+                        rezervare.Stare = StareRezervare.Expirata;
+                        rezervare.SumaTotala = 0;
+                        rezervare.SumaRamasaDePlata = 0;
+                        rezervare.SumaAchitata = 0;
+                        continue;
+                    }
+
+                    // Verificăm prețul pe noapte
+                    if (rezervare.PretCamera?.PretNoapte <= 0)
+                    {
+                        rezervare.SumaTotala = 0;
+                        rezervare.SumaRamasaDePlata = 0;
+                        rezervare.SumaAchitata = 0;
+                        continue;
+                    }
+
+                    // Calculăm sumele
+                    rezervare.SumaTotala = numarNopti * (decimal)rezervare.PretCamera.PretNoapte;
+                    rezervare.SumaRamasaDePlata = rezervare.SumaTotala - rezervare.SumaAchitata;
                 }
 
                 // Salvăm modificările în baza de date

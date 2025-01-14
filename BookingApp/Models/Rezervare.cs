@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BookingApp.Models
@@ -21,20 +22,32 @@ namespace BookingApp.Models
 
         public StareRezervare Stare { get; set; }
 
-        // Nou câmp pentru statusul plății
         public string StarePlata { get; set; } = "Neplatita"; // Valori posibile: Neplatita, Platita, Esuata
 
-        // Constructor cu parametrul implicit pentru statusul plății
-        public Rezervare(int rezervareId, int userId, int pretCameraId, DateTime checkIn, DateTime checkOut, string starePlata = "Neplatita")
-        {
-            RezervareId = rezervareId;
-            UserId = userId;
-            PretCameraId = pretCameraId;
-            CheckIn = checkIn;
-            CheckOut = checkOut;
-            StarePlata = starePlata;
-        }
+        public string ClientSecret { get; set; } // Secret Stripe pentru plată
 
-        public Rezervare() { }
+        public decimal SumaTotala { get; set; }
+        public decimal SumaAchitata { get; set; }
+        public decimal SumaRamasaDePlata { get; set; }
+
+
+        // Metoda pentru calcularea sumei totale
+        public void CalculareSumaTotala()
+        {
+            if (PretCamera == null)
+            {
+                throw new InvalidOperationException("PretCamera nu este setat.");
+            }
+
+            // Calculăm numărul de nopți
+            int numarNopti = (int)(CheckOut - CheckIn).TotalDays;
+            if (numarNopti <= 0)
+            {
+                throw new InvalidOperationException("Intervalul CheckIn-CheckOut nu este valid.");
+            }
+
+            // Calculăm suma totală
+            SumaTotala = numarNopti * (decimal)PretCamera.PretNoapte;
+        }
     }
 }

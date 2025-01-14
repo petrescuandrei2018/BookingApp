@@ -20,6 +20,17 @@ namespace BookingApp.Services
             _mapper = mapper;
         }
 
+        public async Task<Rezervare> GetRezervareByIdAsync(int rezervareId)
+        {
+            return await _hotelRepository.GetRezervareByIdAsync(rezervareId);
+        }
+
+        public async Task ActualizeazaRezervareAsync(Rezervare rezervare)
+        {
+            await _hotelRepository.ActualizeazaRezervareAsync(rezervare);
+        }
+
+
         // Metodă pentru procesarea plății Stripe pentru o rezervare
         public async Task ProcesarePlataStripeAsync(int rezervareId)
         {

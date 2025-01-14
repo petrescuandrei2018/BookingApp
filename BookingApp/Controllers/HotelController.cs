@@ -145,91 +145,147 @@ namespace BookingApp.Controllers
         {
             try
             {
-                Console.WriteLine($"[InitiazaPlata] Pornim procesarea plății pentru RezervareId: {rezervareId}, Suma: {suma}");
+                // Verifică validitatea sumei
+                if (suma <= 0)
+                {
+                    return BadRequest(new { Mesaj = "Suma trebuie să fie mai mare decât zero." });
+                }
 
-                var clientSecret = await _serviciuPlata.ProceseazaPlataAsync(rezervareId, suma, "usd", "Plata pentru rezervare");
+                // Preia rezervarea din BD
+                var rezervare = await _serviciuHotel.GetRezervareByIdAsync(rezervareId);
+                if (rezervare == null)
+                {
+                    return BadRequest(new { Mesaj = $"Rezervarea cu ID-ul {rezervareId} nu există." });
+                }
 
-                Console.WriteLine($"[InitiazaPlata] ClientSecret primit: {clientSecret}");
+                // Recalculează suma totală dacă este necesar
+                rezervare.CalculareSumaTotala();
 
-                // Stocăm detaliile în cache
-                _cachePlati[rezervareId] = clientSecret;
+                // Verifică dacă suma este mai mare decât suma rămasă de plată
+                if (suma > rezervare.SumaRamasaDePlata)
+                {
+                    return BadRequest(new { Mesaj = "Suma introdusă depășește suma totală rămasă de plată." });
+                }
 
-                Console.WriteLine($"[InitiazaPlata] Cache actualizat pentru RezervareId: {rezervareId}, ClientSecret: {clientSecret}");
+                // Inițiază plata cu Stripe
+                var clientSecret = await _serviciuPlata.ProceseazaPlataAsync(rezervareId, suma, "RON", "Plată rezervare");
+                rezervare.SumaRamasaDePlata -= suma;
+                rezervare.ClientSecret = clientSecret;
 
-                return Ok(new { Mesaj = "Plata inițiată cu succes.", ClientSecret = clientSecret });
+                // Actualizează rezervarea în BD
+                await _serviciuHotel.ActualizeazaRezervareAsync(rezervare);
+
+                return Ok(new
+                {
+                    Mesaj = "Plata inițiată cu succes.",
+                    SumaRamasaDePlata = rezervare.SumaRamasaDePlata,
+                    ClientSecret = clientSecret
+                });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[InitiazaPlata] Eroare: {ex.Message}");
                 return BadRequest(new { Mesaj = ex.Message });
             }
         }
 
-
-
-        [HttpPost("ProcesarePlataStripe")]
-        public async Task<IActionResult> ProcesarePlataStripe()
+        // Endpoint pentru crearea unei rezervări noi
+        [HttpPost]
+        [Route("CreateRezervare")]
+        /*[Authorize]*/
+        public async Task<ResponseDto> Rezerva([FromBody] RezervareDto rezervareDto)
         {
+            var response = new ResponseDto();
             try
             {
-                // Obține primul `rezervareId` din cache (simulare)
-                if (!_cachePlati.Any())
+                var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "UtilizatorId");
+                if (userIdClaim == null)
                 {
-                    return BadRequest(new { Mesaj = "Nu există plăți inițiate pentru procesare." });
+                    response.IsSuccess = false;
+                    response.Message = "Token invalid sau utilizator neautorizat.";
+                    return response;
                 }
-
-                var rezervareId = _cachePlati.Keys.First();
-                var clientSecret = _cachePlati[rezervareId];
-
-                // Simulează un eveniment Stripe
-                var evenimentStripe = new
+                if (!int.TryParse(userIdClaim.Value, out int userId))
                 {
-                    id = "evt_test",
-                    @object = "event",
-                    type = "payment_intent.succeeded",
-                    data = new
-                    {
-                        @object = new
-                        {
-                            id = clientSecret,
-                            metadata = new Dictionary<string, string>
-                    {
-                        { "RezervareId", rezervareId.ToString() }
-                    }
-                        }
-                    }
-                };
-
-                // Procesăm evenimentul simulat
-                await _serviciuHotel.ProcesarePlataStripeAsync(rezervareId);
-                return Ok(new { Mesaj = "Plata procesată cu succes pentru rezervare." });
+                    response.IsSuccess = false;
+                    response.Message = "Token-ul conține un ID utilizator invalid.";
+                    return response;
+                }
+                if (userId != rezervareDto.UserId)
+                {
+                    response.IsSuccess = false;
+                    response.Message = "Utilizatorul autentificat nu are permisiuni pentru această acțiune.";
+                    return response;
+                }
+                response.Result = await _serviciuHotel.CreateRezervareFromDto(rezervareDto);
+                response.IsSuccess = true;
+                response.Message = "Rezervarea a fost creată cu succes.";
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Mesaj = $"Eroare la procesarea Stripe: {ex.Message}" });
+                response.IsSuccess = false;
+                response.Message = ex.Message;
+            }
+            return response;
+        }
+
+
+        [HttpPost("ProcesarePlataStripe")]
+        public async Task<IActionResult> ProcesarePlataStripe(int rezervareId)
+        {
+            try
+            {
+                var rezervare = await _serviciuHotel.GetRezervareByIdAsync(rezervareId);
+                if (rezervare == null)
+                {
+                    return BadRequest(new { Mesaj = $"Rezervarea cu ID-ul {rezervareId} nu există." });
+                }
+
+                // Verifică dacă există restanțe
+                if (rezervare.SumaRamasaDePlata > 0)
+                {
+                    return Ok(new { Mesaj = "Plata procesată parțial. Mai sunt de achitat: " + rezervare.SumaRamasaDePlata + " RON." });
+                }
+
+                rezervare.StarePlata = "Platita";
+                await _serviciuHotel.ActualizeazaRezervareAsync(rezervare);
+
+                return Ok(new { Mesaj = "Plata procesată integral cu succes." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Mesaj = $"Eroare la procesarea plății: {ex.Message}" });
             }
         }
+
 
         [HttpPost("FinalizeazaPlata")]
         public async Task<IActionResult> FinalizeazaPlata(int rezervareId)
         {
             try
             {
-                // Verificăm dacă rezervarea există
-                if (!_cachePlati.ContainsKey(rezervareId))
+                var rezervare = await _serviciuHotel.GetRezervareByIdAsync(rezervareId);
+                if (rezervare == null)
                 {
-                    return BadRequest(new { Mesaj = "Rezervarea nu a fost inițiată pentru plată." });
+                    return BadRequest(new { Mesaj = $"Rezervarea cu ID-ul {rezervareId} nu există." });
                 }
 
-                // Marcăm rezervarea ca plătită
-                _cachePlati.Remove(rezervareId);
-                return Ok(new { Mesaj = "Plata finalizată cu succes pentru rezervare." });
+                if (rezervare.SumaRamasaDePlata > 0)
+                {
+                    return BadRequest(new { Mesaj = "Plata nu este completă. Mai sunt de achitat: " + rezervare.SumaRamasaDePlata + " RON." });
+                }
+
+                rezervare.StarePlata = "Platita";
+                await _serviciuHotel.ActualizeazaRezervareAsync(rezervare);
+
+                return Ok(new { Mesaj = "Plata finalizată cu succes." });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Mesaj = $"Eroare la finalizarea plății: {ex.Message}" });
+                return BadRequest(new { Mesaj = $"Eroare la finalizarea plății: {ex.Message}" });
             }
         }
+
+
 
         [HttpPost("ProceseazaRefund")]
         public async Task<IActionResult> ProceseazaRefund([FromQuery] string paymentIntentId, [FromQuery] decimal? suma)
