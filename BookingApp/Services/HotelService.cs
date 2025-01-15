@@ -3,6 +3,7 @@ using BookingApp.Models;
 using BookingApp.Models.Dtos;
 using BookingApp.Repository.Abstractions;
 using BookingApp.Services.Abstractions;
+using Stripe;
 using System.Linq;
 
 namespace BookingApp.Services
@@ -92,6 +93,8 @@ namespace BookingApp.Services
                 : rezervareDto.CheckIn <= DateTime.UtcNow
                     ? StareRezervare.Activa
                     : StareRezervare.Viitoare;
+
+            rezervare.ClientSecret = Guid.NewGuid().ToString();
 
             // Salvăm rezervarea
             await _hotelRepository.AdaugaRezervare(rezervare, rezervareTipCameraId);
@@ -205,10 +208,104 @@ namespace BookingApp.Services
         }
 
         // Obține lista rezervărilor care nu sunt expirate
-        public async Task<List<GetAllRezervariDto>> GetNonExpiredRezervariAsync()
+        public async Task<IEnumerable<RezervareDto>> GetNonExpiredRezervari()
         {
-            var rezervari = await GetAllRezervariAsync();
-            return rezervari.Where(r => r.Stare != StareRezervare.Expirata.ToString()).ToList();
+            var rezervari = await _hotelRepository.GetNonExpiredRezervari();
+            return rezervari.Select(r => new RezervareDto
+            {
+                RezervareId = r.RezervareId,
+                UserId = r.UserId,
+                HotelName = r.PretCamera?.TipCamera?.Hotel?.Name ?? "Hotel necunoscut", // Verificare pentru null
+                CheckIn = r.CheckIn,
+                CheckOut = r.CheckOut,
+                Pret = (decimal)(r.PretCamera?.PretNoapte ?? 0), // Default 0 dacă PretCamera este null
+                Stare = r.Stare.ToString()
+            }).ToList();
         }
+        public async Task ProcesarePlataPartialaAsync(int rezervareId, decimal sumaAchitata)
+        {
+            if (sumaAchitata <= 0)
+            {
+                throw new ArgumentException("Suma achitată trebuie să fie mai mare decât 0.");
+            }
+
+            var rezervare = await _hotelRepository.GetRezervareByIdAsync(rezervareId);
+            if (rezervare == null)
+            {
+                throw new Exception($"Rezervarea cu ID-ul {rezervareId} nu a fost găsită.");
+            }
+
+            if (rezervare.SumaRamasaDePlata <= 0)
+            {
+                throw new Exception("Rezervarea este deja achitată integral.");
+            }
+
+            if (sumaAchitata > rezervare.SumaRamasaDePlata)
+            {
+                throw new Exception($"Suma achitată depășește suma rămasă de plată. Suma rămasă de achitat este {rezervare.SumaRamasaDePlata}.");
+            }
+
+            // Stripe PaymentIntent logic
+            var options = new PaymentIntentCreateOptions
+            {
+                Amount = (long)(sumaAchitata * 100), // Stripe folosește cenți
+                Currency = "usd", // Moneda
+                PaymentMethodTypes = new List<string> { "card" }, // Acceptăm doar carduri
+                AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions
+                {
+                    Enabled = true // Activează metodele automate
+                },
+                Metadata = new Dictionary<string, string>
+    {
+        { "RezervareId", rezervareId.ToString() },
+        { "Description", "Plată parțială rezervare" }
+    }
+            };
+
+
+            var service = new PaymentIntentService();
+            var paymentIntent = await service.CreateAsync(options);
+
+            var confirmOptions = new PaymentIntentConfirmOptions
+            {
+                PaymentMethod = "pm_card_visa" // Exemplu de metodă de plată
+            };
+            await service.ConfirmAsync(paymentIntent.Id, confirmOptions);
+
+            // Actualizează rezervarea
+            rezervare.SumaAchitata += sumaAchitata;
+            rezervare.SumaRamasaDePlata -= sumaAchitata;
+
+            if (rezervare.SumaRamasaDePlata == 0)
+            {
+                rezervare.StarePlata = "Platita";
+            }
+
+            await _hotelRepository.ActualizeazaRezervareAsync(rezervare);
+
+            // Returnează mesaj cu succes
+            throw new Exception($"Plata procesată cu succes. Suma rămasă de plată este {rezervare.SumaRamasaDePlata}.");
+        }
+
+
+        public async Task RefundPaymentAsync(string paymentIntentId, decimal? suma)
+        {
+            var rezervare = await _hotelRepository.GetRezervareByPaymentIntentAsync(paymentIntentId);
+            if (rezervare == null || rezervare.StarePlata != "Platita")
+            {
+                throw new Exception("Rezervarea nu este eligibilă pentru refund.");
+            }
+
+            var service = new Stripe.RefundService();
+            await service.CreateAsync(new RefundCreateOptions
+            {
+                PaymentIntent = paymentIntentId,
+                Amount = suma.HasValue ? (long?)(suma * 100) : null
+            });
+
+            rezervare.StarePlata = "Refundata";
+            await _hotelRepository.ActualizeazaRezervareAsync(rezervare);
+        }
+
     }
 }

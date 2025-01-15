@@ -13,11 +13,13 @@ namespace BookingApp.Services.Abstractions
         Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPret();
         Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPretFiltered(string? filtruNumeHotel, int? capacitatePersoane, float? pretCamera);
         Task<List<GetAllRezervariDto>> GetAllRezervariAsync();
-        Task<List<GetAllRezervariDto>> GetNonExpiredRezervariAsync();
         Task<RezervareDto> CreateRezervareFromDto(RezervareDto rezervareDto);
+        Task<IEnumerable<RezervareDto>> GetNonExpiredRezervari();
         Task ProcesarePlataStripeAsync(int rezervareId);
         Task<Rezervare> GetRezervareByIdAsync(int rezervareId);
         Task ActualizeazaRezervareAsync(Rezervare rezervare);
+        Task ProcesarePlataPartialaAsync(int rezervareId, decimal sumaAchitata);
+        Task RefundPaymentAsync(string paymentIntentId, decimal? suma);
 
     }
 }

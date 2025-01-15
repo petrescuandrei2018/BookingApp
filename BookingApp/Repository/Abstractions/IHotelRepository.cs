@@ -11,6 +11,7 @@ namespace BookingApp.Repository.Abstractions
         Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPret();
         Task<List<HotelTipCameraPretReview>> GetAllHotelsByRating();
         Task<List<Review>> GetAllReviews();
+        Task<IEnumerable<Rezervare>> GetNonExpiredRezervari();
         Task<List<PretCamera>> GetAllPretCamere();
         Task<List<Rezervare>> GetAllRezervariAsync();
         Task<List<TipCamera>> GetAllTipCamereAsync();
@@ -19,5 +20,10 @@ namespace BookingApp.Repository.Abstractions
         Task<Rezervare> GetRezervareByIdAsync(int rezervareId);
         Task ActualizeazaRezervareAsync(Rezervare rezervare);
         Task ActualizeazaPreturiRezervareAsync(Rezervare rezervare);
+        Task ActualizeazaStarePlataAsync(int rezervareId, string starePlata);
+        Task ActualizeazaPlataPartialaAsync(int rezervareId, decimal sumaAchitata);
+        Task<Rezervare> GetRezervareByPaymentIntentAsync(string paymentIntentId);
+
     }
+
 }

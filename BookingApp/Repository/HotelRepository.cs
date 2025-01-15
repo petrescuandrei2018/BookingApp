@@ -133,5 +133,56 @@ namespace BookingApp.Repository
                 .Include(r => r.PretCamera)
                 .FirstOrDefaultAsync(r => r.RezervareId == rezervareId);
         }
+        public async Task<IEnumerable<Rezervare>> GetNonExpiredRezervari()
+        {
+            return await _database.Rezervari
+                .Include(r => r.PretCamera) // Include relația cu PretCamera
+                .ThenInclude(pc => pc.TipCamera) // Include relația cu TipCamera
+                .ThenInclude(tc => tc.Hotel) // Include relația cu Hotel
+                .Where(r => r.Stare != StareRezervare.Expirata && r.CheckOut >= DateTime.UtcNow)
+                .ToListAsync();
+        }
+
+        public async Task ActualizeazaStarePlataAsync(int rezervareId, string starePlata)
+        {
+            var rezervare = await _database.Rezervari.FirstOrDefaultAsync(r => r.RezervareId == rezervareId);
+            if (rezervare == null)
+            {
+                throw new Exception($"Rezervarea cu ID-ul {rezervareId} nu a fost găsită.");
+            }
+
+            rezervare.StarePlata = starePlata;
+            _database.Rezervari.Update(rezervare);
+            await _database.SaveChangesAsync();
+        }
+
+        public async Task ActualizeazaPlataPartialaAsync(int rezervareId, decimal sumaAchitata)
+        {
+            var rezervare = await _database.Rezervari.FirstOrDefaultAsync(r => r.RezervareId == rezervareId);
+            if (rezervare == null)
+            {
+                throw new Exception($"Rezervarea cu ID-ul {rezervareId} nu a fost găsită.");
+            }
+
+            rezervare.SumaAchitata += sumaAchitata;
+            rezervare.SumaRamasaDePlata = rezervare.SumaTotala - rezervare.SumaAchitata;
+
+            if (rezervare.SumaRamasaDePlata <= 0)
+            {
+                rezervare.StarePlata = "Platita";
+            }
+
+            _database.Rezervari.Update(rezervare);
+            await _database.SaveChangesAsync();
+        }
+
+        public async Task<Rezervare> GetRezervareByPaymentIntentAsync(string paymentIntentId)
+        {
+            return await _database.Rezervari
+                .Include(r => r.PretCamera)
+                .FirstOrDefaultAsync(r => r.ClientSecret == paymentIntentId);
+        }
+
+
     }
 }
