@@ -17,6 +17,7 @@ using BCrypt.Net;
 using System.Linq;
 using Microsoft.OpenApi.Models;
 using Stripe;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +32,11 @@ builder.Logging.SetMinimumLevel(LogLevel.Trace);
 var logger = builder.Logging.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
 logger.LogInformation("Test de logare din Program.cs");
 
+var cultureInfo = new CultureInfo("en-US");
+CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
+CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
+
+
 // Înregistrăm configurațiile JWT
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
@@ -40,7 +46,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
-// Configurăm AutoMapper pentru maparea obiectelor DTO și entităților
 IMapper mapper = MappingConfig.RegisterMaps().CreateMapper();
 builder.Services.AddSingleton(mapper);
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());

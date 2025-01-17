@@ -12,15 +12,15 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookingApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241117184942_CreateRezervareTable")]
-    partial class CreateRezervareTable
+    [Migration("20250117002311_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.8")
+                .HasAnnotation("ProductVersion", "9.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -223,6 +223,67 @@ namespace BookingApp.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BookingApp.Models.Rezervare", b =>
+                {
+                    b.Property<int>("RezervareId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RezervareId"));
+
+                    b.Property<DateTime>("CheckIn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CheckOut")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ClientSecret")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("LastModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PretCameraId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Stare")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StarePlata")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("SumaAchitata")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SumaRamasaDePlata")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SumaTotala")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("RezervareId");
+
+                    b.HasIndex("PretCameraId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Rezervari");
+                });
+
             modelBuilder.Entity("BookingApp.Models.TipCamera", b =>
                 {
                     b.Property<int>("TipCameraId")
@@ -271,32 +332,12 @@ namespace BookingApp.Migrations
                     b.HasData(
                         new
                         {
-                            TipCameraId = 1,
-                            CapacitatePersoane = 1,
-                            HotelId = 1,
-                            Name = "Single",
-                            NrCamereDisponibile = 10,
-                            NrCamereOcupate = 10,
-                            NrTotalCamere = 20
-                        },
-                        new
-                        {
-                            TipCameraId = 2,
-                            CapacitatePersoane = 2,
-                            HotelId = 2,
-                            Name = "Double",
-                            NrCamereDisponibile = 30,
-                            NrCamereOcupate = 10,
-                            NrTotalCamere = 40
-                        },
-                        new
-                        {
                             TipCameraId = 3,
                             CapacitatePersoane = 4,
                             HotelId = 1,
                             Name = "Apartament",
-                            NrCamereDisponibile = 1,
-                            NrCamereOcupate = 9,
+                            NrCamereDisponibile = 4,
+                            NrCamereOcupate = 6,
                             NrTotalCamere = 10
                         },
                         new
@@ -305,8 +346,8 @@ namespace BookingApp.Migrations
                             CapacitatePersoane = 2,
                             HotelId = 2,
                             Name = "SeaView",
-                            NrCamereDisponibile = 2,
-                            NrCamereOcupate = 13,
+                            NrCamereDisponibile = 0,
+                            NrCamereOcupate = 15,
                             NrTotalCamere = 15
                         },
                         new
@@ -315,8 +356,8 @@ namespace BookingApp.Migrations
                             CapacitatePersoane = 1,
                             HotelId = 1,
                             Name = "Single",
-                            NrCamereDisponibile = 10,
-                            NrCamereOcupate = 10,
+                            NrCamereDisponibile = 4,
+                            NrCamereOcupate = 16,
                             NrTotalCamere = 20
                         },
                         new
@@ -325,8 +366,8 @@ namespace BookingApp.Migrations
                             CapacitatePersoane = 1,
                             HotelId = 2,
                             Name = "Single",
-                            NrCamereDisponibile = 5,
-                            NrCamereOcupate = 5,
+                            NrCamereDisponibile = 0,
+                            NrCamereOcupate = 10,
                             NrTotalCamere = 10
                         });
                 });
@@ -343,9 +384,20 @@ namespace BookingApp.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Rol")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("user");
 
                     b.Property<string>("UserName")
                         .IsRequired()
@@ -363,7 +415,9 @@ namespace BookingApp.Migrations
                         {
                             UserId = 1,
                             Email = "mihai@gmail.com",
+                            Password = "$2a$11$dUEvknqvCQRoO0QoxpCRCeR.3HNBIqnL81Ntys5QTm1LqlunYOffy",
                             PhoneNumber = "0775695878",
+                            Rol = "admin",
                             UserName = "Mihai",
                             Varsta = 30
                         },
@@ -371,7 +425,9 @@ namespace BookingApp.Migrations
                         {
                             UserId = 2,
                             Email = "nicu@gmail.com",
+                            Password = "$2a$11$kZawrOlDiOnsaapcMlXreuG4iGmWgaOv9qPNXK4INkIXcU9PB6Tce",
                             PhoneNumber = "0770605078",
+                            Rol = "admin",
                             UserName = "Nicu",
                             Varsta = 20
                         },
@@ -379,7 +435,9 @@ namespace BookingApp.Migrations
                         {
                             UserId = 3,
                             Email = "alex@gmail.com",
+                            Password = "$2a$11$xRb2GPtzBHxxAXxSDH/Z0.wYgK8uIUachK.E/FZ0Z2P3vxjsVivd.",
                             PhoneNumber = "0765665668",
+                            Rol = "user",
                             UserName = "Alex",
                             Varsta = 32
                         });
@@ -411,6 +469,25 @@ namespace BookingApp.Migrations
                         .IsRequired();
 
                     b.Navigation("Hotel");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BookingApp.Models.Rezervare", b =>
+                {
+                    b.HasOne("BookingApp.Models.PretCamera", "PretCamera")
+                        .WithMany()
+                        .HasForeignKey("PretCameraId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BookingApp.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PretCamera");
 
                     b.Navigation("User");
                 });

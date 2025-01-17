@@ -11,7 +11,7 @@ namespace BookingApp.Models
         public string PhoneNumber {  get; set; }
         public int Varsta {  get; set; }
         public string Password { get; set; }
-        public RolUtilizator Rol { get; set; } // Enum pentru roluri
+        public string Rol { get; set; } 
 
 
         public User(int userId, string userName, string email, string phoneNumber, int varsta, string password)
@@ -22,8 +22,13 @@ namespace BookingApp.Models
             PhoneNumber = phoneNumber;
             Varsta = varsta;
             Password = password;
+            Rol = "user";
         }
 
-        public User() { }
+        public User() 
+        {
+            Rol = "user"; // Setăm valoarea implicită pentru Rol
+
+        }
     }
 }

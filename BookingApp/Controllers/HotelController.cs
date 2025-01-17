@@ -333,7 +333,7 @@ namespace BookingApp.Controllers
         }
 
         [HttpPut("SetAdmin")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> SetAdmin(int userId, bool isAdmin)
         {
             if (userId <= 0)
@@ -350,7 +350,7 @@ namespace BookingApp.Controllers
                     return NotFound(new { Mesaj = "Utilizatorul nu a fost găsit." });
                 }
 
-                user.Rol = isAdmin ? RolUtilizator.Admin : RolUtilizator.User;
+                user.Rol = isAdmin ? "admin" : "user"; // Folosim direct stringuri
                 var success = await _serviciuAutentificare.UpdateUserAsync(user);
 
                 if (!success)
@@ -365,6 +365,7 @@ namespace BookingApp.Controllers
                 return StatusCode(500, new { Mesaj = $"A apărut o eroare: {ex.Message}" });
             }
         }
+
 
         [HttpGet("GetAllUsers")]
         public async Task<IActionResult> GetAllUsers()

@@ -1,14 +1,13 @@
 ﻿using BookingApp.Models;
 using Microsoft.EntityFrameworkCore;
+using System;
 
 namespace BookingApp.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
-        {
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-        }
         public DbSet<Hotel> Hotels { get; set; }
         public DbSet<TipCamera> TipCamere { get; set; }
         public DbSet<PretCamera> PretCamere { get; set; }
@@ -16,86 +15,76 @@ namespace BookingApp.Data
         public DbSet<Review> Reviews { get; set; }
         public DbSet<Rezervare> Rezervari { get; set; }
 
+        // Configurări suplimentare pentru entități
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configurare pentru entitatea User
-            modelBuilder.ApplyConfiguration(new UserConfiguration());
-
-            // Configurare pentru entitatea Rezervare
-            modelBuilder.Entity<Rezervare>(configRezervare =>
+            // Configurări pentru entitatea Rezervare
+            modelBuilder.Entity<Rezervare>(entity =>
             {
-                configRezervare.Property(r => r.Stare)
-                    .HasConversion<string>()
+                entity.Property(e => e.SumaAchitata)
+                    .HasColumnType("decimal(18,2)")
                     .IsRequired();
 
-                configRezervare.Property(r => r.StarePlata)
-                    .HasDefaultValue("Neplatita") // Valoare implicită pentru `StarePlata`
-                    .IsRequired(); // Setăm câmpul ca fiind obligatoriu
+                entity.Property(e => e.SumaRamasaDePlata)
+                    .HasColumnType("decimal(18,2)")
+                    .IsRequired();
+
+                entity.Property(e => e.SumaTotala)
+                    .HasColumnType("decimal(18,2)")
+                    .IsRequired();
             });
 
-            // Configurare date prepopulate (se păstrează logica existentă)
-            Hotel hotel1 = new Hotel(1, "Hotel1", "Brasov")
+            // Configurări pentru entitatea User
+            modelBuilder.Entity<User>(entity =>
             {
-                Address = "Brasov",
-                HotelId = 1,
-                Name = "Hotel1"
-            };
+                entity.Property(u => u.Rol)
+                    .IsRequired()
+                    .HasDefaultValue("user") // Valoare implicită
+                    .HasMaxLength(20); // Lungime maximă
+            });
 
-            Hotel hotel2 = new Hotel(2, "Hotel2", "Constanta")
-            {
-                Address = "Constanta",
-                HotelId = 2,
-                Name = "Hotel2"
-            };
+            // Apelăm metoda pentru prepopularea datelor
+            PrepopuleazaDate(modelBuilder);
+        }
 
-            modelBuilder.Entity<Hotel>().HasData(hotel1, hotel2);
+        // Metodă pentru prepopularea datelor
+        private void PrepopuleazaDate(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Hotel>().HasData(
+                new Hotel(1, "Hotel1", "Brasov"),
+                new Hotel(2, "Hotel2", "Constanta"),
+                new Hotel(3, "Hotel3", "Sibu")
+            );
 
-            List<TipCamera> tipCameras = new List<TipCamera>
-            {
-                new TipCamera(1, "Single", 1, 20, 10, 10, 1),
-                new TipCamera(2, "Double", 2, 40, 30, 10, 2),
-                new TipCamera(3, "Apartament", 4, 10, 1, 9, 1),
-                new TipCamera(4, "SeaView", 2, 15, 2, 13, 2),
-                new TipCamera(5, "Single", 1, 20, 10, 10, 1),
-                new TipCamera(6, "Single", 1, 10, 5, 5, 2)
-            };
+            modelBuilder.Entity<TipCamera>().HasData(
+                new TipCamera(3, "Apartament", 4, 10, 4, 6, 1),
+                new TipCamera(4, "SeaView", 2, 15, 0, 15, 2),
+                new TipCamera(5, "Single", 1, 20, 4, 16, 1),
+                new TipCamera(6, "Single", 1, 10, 0, 10, 2)
+            );
 
-            modelBuilder.Entity<TipCamera>().HasData(tipCameras);
-
-            List<PretCamera> pretCamere = new List<PretCamera>
-            {
+            modelBuilder.Entity<PretCamera>().HasData(
                 new PretCamera(1, 900, new DateTime(2024, 10, 10), new DateTime(2024, 12, 12), 3),
                 new PretCamera(2, 700, new DateTime(2024, 12, 10), new DateTime(2024, 12, 12), 4),
                 new PretCamera(3, 500, new DateTime(2024, 09, 25), new DateTime(2024, 12, 12), 5),
                 new PretCamera(4, 550, new DateTime(2024, 08, 09), new DateTime(2024, 12, 12), 6)
-            };
+            );
 
-            modelBuilder.Entity<PretCamera>().HasData(pretCamere);
+            modelBuilder.Entity<User>().HasData(
+                new User(1, "Mihai", "mihai@gmail.com", "0775695878", 30, BCrypt.Net.BCrypt.HashPassword("parola1")) { Rol = "admin" },
+                new User(2, "Nicu", "nicu@gmail.com", "0770605078", 20, BCrypt.Net.BCrypt.HashPassword("parola2")) { Rol = "admin" },
+                new User(3, "Alex", "alex@gmail.com", "0765665668", 32, BCrypt.Net.BCrypt.HashPassword("parola3")) { Rol = "user" }
+            );
 
-            List<User> users = new List<User>
-            {
-                new User(1, "Mihai", "mihai@gmail.com", "0775695878", 30, "parola1"),
-                new User(2, "Nicu", "nicu@gmail.com", "0770605078", 20, "parola2"),
-                new User(3, "Alex", "alex@gmail.com", "0765665668", 32, "parola3")
-            };
-
-            modelBuilder.Entity<User>().HasData(users);
-
-            List<Review> reviews = new List<Review>
-            {
+            modelBuilder.Entity<Review>().HasData(
                 new Review(1, 4.9, "A fost bine", 1, 1),
                 new Review(2, 5, "Mancare excelenta", 1, 2),
                 new Review(3, 5, "Priveliste la mare", 1, 3),
                 new Review(4, 3.5, "Cazare tarzie", 1, 3),
                 new Review(5, 2, "Muste in camera", 2, 2)
-            };
-
-            modelBuilder.Entity<Review>().HasData(reviews);
-
-            Hotel h3 = new Hotel(3, "Hotel3", "Sibu");
-            modelBuilder.Entity<Hotel>().HasData(h3);
+            );
         }
     }
 }

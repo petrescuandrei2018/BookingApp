@@ -245,47 +245,52 @@ namespace BookingApp.Services
                 throw new Exception($"Suma achitată depășește suma rămasă de plată. Suma rămasă de achitat este {rezervare.SumaRamasaDePlata}.");
             }
 
-            // Stripe PaymentIntent logic
-            var options = new PaymentIntentCreateOptions
+            long sumaInCenti = (long)(sumaAchitata * 100); // Convertim suma în cenți
+
+            try
             {
-                Amount = (long)(sumaAchitata * 100), // Stripe folosește cenți
-                Currency = "usd", // Moneda
-                PaymentMethodTypes = new List<string> { "card" }, // Acceptăm doar carduri
-                AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions
+                // Stripe PaymentIntent logic
+                var options = new PaymentIntentCreateOptions
                 {
-                    Enabled = true // Activează metodele automate
-                },
-                Metadata = new Dictionary<string, string>
-    {
-        { "RezervareId", rezervareId.ToString() },
-        { "Description", "Plată parțială rezervare" }
-    }
-            };
+                    Amount = sumaInCenti, // Valoarea plății în cenți
+                    Currency = "usd", // Moneda (ajustată după necesități)
+                    AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions
+                    {
+                        Enabled = true // Activează metodele automate de plată
+                    }
+                };
 
+                var service = new PaymentIntentService();
+                var paymentIntent = await service.CreateAsync(options);
 
-            var service = new PaymentIntentService();
-            var paymentIntent = await service.CreateAsync(options);
+                // Confirmarea manuală a PaymentIntent
+                var confirmOptions = new PaymentIntentConfirmOptions
+                {
+                    PaymentMethod = "pm_card_visa" // Exemplu de metodă de plată
+                };
+                await service.ConfirmAsync(paymentIntent.Id, confirmOptions);
 
-            var confirmOptions = new PaymentIntentConfirmOptions
-            {
-                PaymentMethod = "pm_card_visa" // Exemplu de metodă de plată
-            };
-            await service.ConfirmAsync(paymentIntent.Id, confirmOptions);
+                // Actualizează rezervarea
+                rezervare.SumaAchitata += sumaAchitata;
+                rezervare.SumaRamasaDePlata -= sumaAchitata;
 
-            // Actualizează rezervarea
-            rezervare.SumaAchitata += sumaAchitata;
-            rezervare.SumaRamasaDePlata -= sumaAchitata;
+                if (rezervare.SumaRamasaDePlata == 0)
+                {
+                    rezervare.StarePlata = "Platita";
+                }
 
-            if (rezervare.SumaRamasaDePlata == 0)
-            {
-                rezervare.StarePlata = "Platita";
+                await _hotelRepository.ActualizeazaRezervareAsync(rezervare);
+
+                // Mesaj succes
+                Console.WriteLine($"Plata procesată cu succes. Suma rămasă de plată este {rezervare.SumaRamasaDePlata}.");
             }
-
-            await _hotelRepository.ActualizeazaRezervareAsync(rezervare);
-
-            // Returnează mesaj cu succes
-            throw new Exception($"Plata procesată cu succes. Suma rămasă de plată este {rezervare.SumaRamasaDePlata}.");
+            catch (StripeException ex)
+            {
+                Console.WriteLine($"Stripe Error: {ex.StripeError.Message}");
+                throw new Exception("A apărut o eroare la procesarea plății.");
+            }
         }
+
 
 
         public async Task RefundPaymentAsync(string paymentIntentId, decimal? suma)
