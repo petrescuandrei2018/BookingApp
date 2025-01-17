@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace BookingApp.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class SeedInitial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -184,9 +184,9 @@ namespace BookingApp.Migrations
                 columns: new[] { "UserId", "Email", "Password", "PhoneNumber", "Rol", "UserName", "Varsta" },
                 values: new object[,]
                 {
-                    { 1, "mihai@gmail.com", "$2a$11$dUEvknqvCQRoO0QoxpCRCeR.3HNBIqnL81Ntys5QTm1LqlunYOffy", "0775695878", "admin", "Mihai", 30 },
-                    { 2, "nicu@gmail.com", "$2a$11$kZawrOlDiOnsaapcMlXreuG4iGmWgaOv9qPNXK4INkIXcU9PB6Tce", "0770605078", "admin", "Nicu", 20 },
-                    { 3, "alex@gmail.com", "$2a$11$xRb2GPtzBHxxAXxSDH/Z0.wYgK8uIUachK.E/FZ0Z2P3vxjsVivd.", "0765665668", "user", "Alex", 32 }
+                    { 1, "mihai@gmail.com", "$2a$11$OUs95r6D0E76ubMnuJWJC.WCQdkbyke9au7rDPAnEz8SNR7Wah8w.", "0775695878", "admin", "Mihai", 30 },
+                    { 2, "nicu@gmail.com", "$2a$11$mRaTjfq1hngFobjB1flQi.MGx6YZ4s7MB0ro74mTIOk6wVI2SNq.C", "0770605078", "admin", "Nicu", 20 },
+                    { 3, "alex@gmail.com", "$2a$11$.LfBmFSZXnT//FpuJaETI.eDGoGFUZGpOBcu1h3od.3b4tNYuqxyW", "0765665668", "user", "Alex", 32 }
                 });
 
             migrationBuilder.InsertData(

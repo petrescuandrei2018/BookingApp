@@ -412,7 +412,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 1,
                             Email = "mihai@gmail.com",
-                            Password = "$2a$11$nnMblqqzY6fYmFfMptwIcuzrObU/5XN/DdkBbavUovooOlRp7akRS",
+                            Password = "$2a$11$OUs95r6D0E76ubMnuJWJC.WCQdkbyke9au7rDPAnEz8SNR7Wah8w.",
                             PhoneNumber = "0775695878",
                             Rol = "admin",
                             UserName = "Mihai",
@@ -422,7 +422,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 2,
                             Email = "nicu@gmail.com",
-                            Password = "$2a$11$Ns7hbbbPU71guWod932J2uB3/9VUFYsoxW1P2P6hXFlTTAAH1c..m",
+                            Password = "$2a$11$mRaTjfq1hngFobjB1flQi.MGx6YZ4s7MB0ro74mTIOk6wVI2SNq.C",
                             PhoneNumber = "0770605078",
                             Rol = "admin",
                             UserName = "Nicu",
@@ -432,7 +432,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 3,
                             Email = "alex@gmail.com",
-                            Password = "$2a$11$ZAJDuH43A00EtWAbslv17ug5pGd7z8nHVBePzToIwcom7Ze3s7S.a",
+                            Password = "$2a$11$.LfBmFSZXnT//FpuJaETI.eDGoGFUZGpOBcu1h3od.3b4tNYuqxyW",
                             PhoneNumber = "0765665668",
                             Rol = "user",
                             UserName = "Alex",

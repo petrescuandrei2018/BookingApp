@@ -1,6 +1,6 @@
 ﻿using BookingApp.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace BookingApp.Data
 {
@@ -15,7 +15,13 @@ namespace BookingApp.Data
         public DbSet<Review> Reviews { get; set; }
         public DbSet<Rezervare> Rezervari { get; set; }
 
-        // Configurări suplimentare pentru entități
+        // Adăugăm această metodă
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            optionsBuilder.ConfigureWarnings(warnings =>
+                warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -45,13 +51,13 @@ namespace BookingApp.Data
                     .HasMaxLength(20); // Lungime maximă
             });
 
-            // Apelăm metoda pentru prepopularea datelor
+            // Date seed
             PrepopuleazaDate(modelBuilder);
         }
 
-        // Metodă pentru prepopularea datelor
         private void PrepopuleazaDate(ModelBuilder modelBuilder)
         {
+            // Seed data
             modelBuilder.Entity<Hotel>().HasData(
                 new Hotel(1, "Hotel1", "Brasov"),
                 new Hotel(2, "Hotel2", "Constanta"),
@@ -68,8 +74,8 @@ namespace BookingApp.Data
             modelBuilder.Entity<PretCamera>().HasData(
                 new PretCamera(1, 900, new DateTime(2024, 10, 10), new DateTime(2024, 12, 12), 3),
                 new PretCamera(2, 700, new DateTime(2024, 12, 10), new DateTime(2024, 12, 12), 4),
-                new PretCamera(3, 500, new DateTime(2024, 09, 25), new DateTime(2024, 12, 12), 5),
-                new PretCamera(4, 550, new DateTime(2024, 08, 09), new DateTime(2024, 12, 12), 6)
+                new PretCamera(3, 500, new DateTime(2024, 9, 25), new DateTime(2024, 12, 12), 5),
+                new PretCamera(4, 550, new DateTime(2024, 8, 9), new DateTime(2024, 12, 12), 6)
             );
 
             modelBuilder.Entity<User>().HasData(
