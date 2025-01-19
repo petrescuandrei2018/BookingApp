@@ -13,13 +13,22 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using BCrypt.Net;
-using System.Linq;
 using Microsoft.OpenApi.Models;
 using Stripe;
 using System.Globalization;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Validare StripeSettings la startup
+var stripeSection = builder.Configuration.GetSection("Stripe");
+if (string.IsNullOrEmpty(stripeSection["SecretKey"]) || string.IsNullOrEmpty(stripeSection["PublishableKey"]))
+{
+    throw new InvalidOperationException("Configurarea Stripe nu este completă. Verifică SecretKey și PublishableKey în appsettings.json.");
+}
+
+// Configurăm Stripe API Key
+StripeConfiguration.ApiKey = stripeSection["SecretKey"];
 
 // Configurează furnizorii de logare
 builder.Logging.ClearProviders();
@@ -36,7 +45,6 @@ var cultureInfo = new CultureInfo("en-US");
 CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
 CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 
-
 // Înregistrăm configurațiile JWT
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
@@ -50,9 +58,14 @@ IMapper mapper = MappingConfig.RegisterMaps().CreateMapper();
 builder.Services.AddSingleton(mapper);
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
-var cachePlati = new Dictionary<int, string>();
-builder.Services.AddSingleton(cachePlati);
+// Configurăm Redis ca mediu de stocare distribuit
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+});
 
+// Adăugăm serviciul RedisCache
+builder.Services.AddScoped<IServiciuCacheRedis, ServiciuCacheRedis>();
 
 // Adăugăm serviciile proiectului în containerul de servicii
 builder.Services.AddScoped<IHotelRepository, HotelRepository>();
@@ -61,11 +74,8 @@ builder.Services.AddScoped<IRezervareServiciuActualizare, RezervareServiciuActua
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IServiciuPlata, ServiciuPlata>();
 builder.Services.AddScoped<IServiciuEmail, ServiciuEmail>();
+builder.Services.AddScoped<IServiciuStripe, ServiciuStripe>();
 builder.Services.AddHostedService<RezervareServiciuActualizare>();
-
-// Adăugarea configurației Stripe
-builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe")); // StripeSettings trebuie să fie definit în proiect
-
 
 // Configurare pentru autentificare și generarea token-urilor JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
@@ -102,7 +112,6 @@ builder.Services.AddControllers()
     });
 
 // Configurăm Stripe
-StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 builder.Services.AddSingleton<IStripeClient>(new StripeClient(StripeConfiguration.ApiKey));
 
 // Configurăm Swagger pentru documentarea API-ului
