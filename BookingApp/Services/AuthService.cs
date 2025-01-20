@@ -59,56 +59,81 @@ namespace BookingApp.Services
 
         public bool ValideazaUtilizator(string email, string parola)
         {
-            var utilizator = _context.Users.FirstOrDefault(u => u.Email.ToLowerInvariant() == email.ToLowerInvariant());
+            // Normalizează email-ul înainte de query
+            email = email.ToLower();
+
+            var utilizator = _context.Users
+                .FirstOrDefault(u => u.Email == email);
+
             if (utilizator == null)
             {
                 return false;
             }
 
+            // Verifică parola criptată
             return BCrypt.Net.BCrypt.Verify(parola, utilizator.Password);
+        }
+
+        public async Task<bool> ExistaEmailAsync(string email)
+        {
+            // Normalizează email-ul înainte de query
+            email = email.ToLower();
+
+            return await _context.Users.AnyAsync(u => u.Email == email);
+        }
+
+        public async Task<bool> ExistaTelefonAsync(string phoneNumber)
+        {
+            return await _context.Users.AnyAsync(u => u.PhoneNumber == phoneNumber);
         }
 
         public async Task<User> RegisterUser(UserDto userDto)
         {
-            var emailLower = userDto.Email?.ToLowerInvariant();
-            var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLowerInvariant() == emailLower);
-            if (existingUser != null)
+            // Verifică dacă email-ul și numărul de telefon sunt unice
+            if (await ExistaEmailAsync(userDto.Email))
             {
-                throw new Exception("Email-ul este deja folosit de un alt utilizator.");
+                throw new Exception("Email-ul este deja utilizat.");
             }
 
-            var hashedPassword = HashPassword(userDto.Password);
-
-            var rolLower = userDto.Rol?.ToLowerInvariant();
-            if (rolLower != "admin" && rolLower != "user")
+            if (await ExistaTelefonAsync(userDto.PhoneNumber))
             {
-                throw new Exception("Rol invalid. Permis doar 'admin' sau 'user'.");
+                throw new Exception("Numărul de telefon este deja utilizat.");
             }
 
-            var newUser = new User
+            // Normalizează email-ul și criptează parola
+            var user = new User
             {
                 UserName = userDto.UserName,
-                Email = emailLower,
+                Email = userDto.Email.ToLower(), // Normalizare email
                 PhoneNumber = userDto.PhoneNumber,
                 Varsta = userDto.Varsta,
-                Password = hashedPassword,
-                Rol = rolLower
+                Password = HashPassword(userDto.Password), // Criptare parolă
+                Rol = userDto.Rol // Preia rolul din DTO
             };
 
-            _context.Users.Add(newUser);
+            // Salvează utilizatorul în baza de date
+            _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            return newUser;
+            return user;
+        }
+
+        private string HashPassword(string password)
+        {
+            return BCrypt.Net.BCrypt.HashPassword(password);
         }
 
         public string AutentificaUtilizator(string email, string parola)
         {
+            // Normalizează email-ul înainte de validare
+            email = email.ToLower();
+
             if (!ValideazaUtilizator(email, parola))
             {
                 return "Email sau parola incorectă.";
             }
 
-            var utilizator = _context.Users.FirstOrDefault(u => u.Email.ToLowerInvariant() == email.ToLowerInvariant());
+            var utilizator = _context.Users.FirstOrDefault(u => u.Email == email);
             var roluri = new List<string> { utilizator.Rol };
 
             return GenereazaToken(utilizator.UserId.ToString(), roluri);
@@ -142,11 +167,6 @@ namespace BookingApp.Services
         public async Task<List<User>> GetAllUsersAsync()
         {
             return await _context.Users.ToListAsync();
-        }
-
-        public string HashPassword(string password)
-        {
-            return BCrypt.Net.BCrypt.HashPassword(password);
         }
     }
 }

@@ -9,7 +9,7 @@ namespace BookingApp.Models.Dtos
         public string Email { get; set; }
 
         [Required(ErrorMessage = "Parola este obligatorie.")]
-        [MinLength(8, ErrorMessage = "Parola trebuie să aibă cel puțin 8 caractere.")]
+        [MinLength(5, ErrorMessage = "Parola trebuie să aibă cel puțin 5 caractere.")]
         public string Password { get; set; }
     }
 }

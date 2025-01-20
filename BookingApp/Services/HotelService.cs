@@ -48,59 +48,56 @@ namespace BookingApp.Services
         }
 
         // Metodă pentru crearea unei rezervări pornind de la DTO
-        public async Task<RezervareDto> CreateRezervareFromDto(RezervareDto rezervareDto)
+        public async Task<RezervareDto> CreateRezervareFromDto(RezervareDto rezervareDto, int userId)
         {
-            // Validare: CheckOut trebuie să fie după CheckIn
-            if (rezervareDto.CheckOut < rezervareDto.CheckIn)
+            // Validare CheckIn și CheckOut
+            if (rezervareDto.CheckOut <= rezervareDto.CheckIn)
             {
-                throw new Exception("Data de CheckOut nu poate fi mai mică decât data de CheckIn.");
+                throw new ArgumentException("Data de CheckOut trebuie să fie după CheckIn.");
             }
 
-            // Verificăm existența utilizatorului
-            var users = await _hotelRepository.GetAllUsers();
-            if (!users.Any(x => x.UserId == rezervareDto.UserId))
+            // Obține camera
+            var pretCamera = await _hotelRepository.GetPretCameraById(rezervareDto.PretCameraId);
+            if (pretCamera == null)
             {
-                throw new Exception($"Utilizatorul cu ID {rezervareDto.UserId} nu există.");
+                throw new Exception($"Camera cu ID-ul {rezervareDto.PretCameraId} nu există.");
             }
 
-            // Verificăm existența camerei și disponibilitatea acesteia
-            var pretCamere = await _hotelRepository.GetAllPretCamere();
-            var validPretCamera = pretCamere.FirstOrDefault(x => x.PretCameraId == rezervareDto.PretCameraId);
-            if (validPretCamera == null)
+            // Verifică disponibilitatea
+            var disponibilitate = await _hotelRepository.GetDisponibilitateCamera(rezervareDto.PretCameraId);
+            if (disponibilitate <= 0)
             {
-                throw new Exception($"Camera cu ID {rezervareDto.PretCameraId} nu există.");
+                throw new Exception("Nu există camere disponibile.");
             }
 
-            var hotelsTipCamere = await _hotelRepository.GetAllHotelsTipCamera();
-            var rezervareTipCameraId = validPretCamera.TipCameraId;
+            // Creează rezervarea
+            var durataSejur = (rezervareDto.CheckOut - rezervareDto.CheckIn).Days;
+            var sumaTotala = durataSejur * (decimal)pretCamera.PretNoapte;
 
-            var nrCamereDisponibile = hotelsTipCamere
-                .Where(htc => htc.TipCameraId == rezervareTipCameraId)
-                .Select(htc => htc.NrCamereDisponibile)
-                .FirstOrDefault();
-
-            if (nrCamereDisponibile < 1)
+            var rezervare = new Rezervare
             {
-                throw new Exception($"Nu există camere disponibile pentru TipCameraId {rezervareTipCameraId}.");
-            }
+                UserId = userId,
+                PretCameraId = rezervareDto.PretCameraId,
+                CheckIn = rezervareDto.CheckIn,
+                CheckOut = rezervareDto.CheckOut,
+                SumaTotala = sumaTotala,
+                SumaRamasaDePlata = sumaTotala,
+                Stare = "Viitoare",
+                StarePlata = "Neplatita",
+                ClientSecret = Guid.NewGuid().ToString()
+            };
 
-            // Mapăm DTO-ul în entitate
-            var rezervare = _mapper.Map<Rezervare>(rezervareDto);
+            // Salvare
+            await _hotelRepository.AdaugaRezervare(rezervare, pretCamera.TipCameraId);
 
-            // Stabilim starea rezervării
-            rezervare.Stare = rezervareDto.CheckOut < DateTime.UtcNow
-                ? StareRezervare.Expirata
-                : rezervareDto.CheckIn <= DateTime.UtcNow
-                    ? StareRezervare.Activa
-                    : StareRezervare.Viitoare;
-
-            rezervare.ClientSecret = Guid.NewGuid().ToString();
-
-            // Salvăm rezervarea
-            await _hotelRepository.AdaugaRezervare(rezervare, rezervareTipCameraId);
+            // Returnare DTO
+            rezervareDto.Pret = sumaTotala;
+            rezervareDto.HotelName = pretCamera.TipCamera.Hotel.Name;
+            rezervareDto.Stare = "Viitoare";
 
             return rezervareDto;
         }
+
 
         // Obține lista tuturor hotelurilor
         public async Task<List<ResponseHotelDto>> GetAllHotels()

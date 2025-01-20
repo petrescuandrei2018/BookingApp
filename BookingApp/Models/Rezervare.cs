@@ -20,9 +20,9 @@ namespace BookingApp.Models
         public DateTime CheckIn { get; set; }
         public DateTime CheckOut { get; set; }
 
-        public StareRezervare Stare { get; set; }
+        public string Stare { get; set; }
 
-        public string StarePlata { get; set; } = "Neplatita"; // Valori posibile: Neplatita, Platita, Esuata
+        public string StarePlata { get; set; } = "Neplatita";
 
         public string ClientSecret { get; set; } // Secret Stripe pentru plată
 

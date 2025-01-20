@@ -44,6 +44,31 @@ namespace BookingApp.Controllers
 
             try
             {
+                // Validare: Email unic
+                var existaEmail = await _serviciuAutentificare.ExistaEmailAsync(userDto.Email);
+                if (existaEmail)
+                {
+                    response.IsSuccess = false;
+                    response.Message = "Email-ul este deja utilizat.";
+                    return response;
+                }
+
+                // Validare: Telefon unic
+                var existaTelefon = await _serviciuAutentificare.ExistaTelefonAsync(userDto.PhoneNumber);
+                if (existaTelefon)
+                {
+                    response.IsSuccess = false;
+                    response.Message = "Numărul de telefon este deja utilizat.";
+                    return response;
+                }
+
+                // Validare: Dacă `Rol` nu este valid, setează implicit "user"
+                if (!new[] { "admin", "user" }.Contains(userDto.Rol?.ToLower()))
+                {
+                    userDto.Rol = "user";
+                }
+
+                // Apelează metoda de înregistrare
                 var utilizatorNou = await _serviciuAutentificare.RegisterUser(userDto);
                 response.IsSuccess = true;
                 response.Message = "Utilizator înregistrat cu succes.";
@@ -53,7 +78,8 @@ namespace BookingApp.Controllers
                     Nume = utilizatorNou.UserName,
                     Email = utilizatorNou.Email,
                     Telefon = utilizatorNou.PhoneNumber,
-                    Varsta = utilizatorNou.Varsta
+                    Varsta = utilizatorNou.Varsta,
+                    Rol = utilizatorNou.Rol
                 };
             }
             catch (Exception ex)
@@ -64,6 +90,10 @@ namespace BookingApp.Controllers
 
             return response;
         }
+
+
+
+
 
         [HttpPost("login")]
         public IActionResult Login([FromBody] LogInDto logInDto)
@@ -92,12 +122,18 @@ namespace BookingApp.Controllers
         }
 
         [HttpPost("CreateRezervare")]
-        public async Task<ResponseDto> Rezerva([FromBody] RezervareDto rezervareDto)
+        [Authorize]
+        public async Task<IActionResult> Rezerva([FromBody] RezervareDto rezervareDto)
         {
             var response = new ResponseDto();
+
             try
             {
-                response.Result = await _serviciuHotel.CreateRezervareFromDto(rezervareDto);
+                // Obține ID-ul utilizatorului logat din token
+                var utilizatorId = int.Parse(User.Claims.First(c => c.Type == "UtilizatorId").Value);
+
+                // Creează rezervarea
+                response.Result = await _serviciuHotel.CreateRezervareFromDto(rezervareDto, utilizatorId);
                 response.IsSuccess = true;
                 response.Message = "Rezervarea a fost creată cu succes.";
             }
@@ -106,8 +142,12 @@ namespace BookingApp.Controllers
                 response.IsSuccess = false;
                 response.Message = ex.Message;
             }
-            return response;
+
+            return Ok(response);
         }
+
+
+
 
         [HttpGet("GetAllRezervari")]
         [Authorize]
@@ -221,16 +261,16 @@ namespace BookingApp.Controllers
             return Ok(rezervari);
         }
 
-        [HttpPost("InitiazaPlata")]
-        public async Task<IActionResult> InitiazaPlata(int rezervareId, decimal suma)
+        [HttpPost("Plata")]
+        public async Task<IActionResult> ProcesarePlata([FromQuery] int rezervareId, [FromQuery] decimal suma)
         {
+            if (rezervareId <= 0 || suma <= 0)
+            {
+                return BadRequest(new { Mesaj = "ID-ul rezervării și suma trebuie să fie valide." });
+            }
+
             try
             {
-                if (suma <= 0)
-                {
-                    return BadRequest(new { Mesaj = "Suma trebuie să fie mai mare decât zero." });
-                }
-
                 var rezervare = await _serviciuHotel.GetRezervareByIdAsync(rezervareId);
                 if (rezervare == null)
                 {
@@ -241,67 +281,44 @@ namespace BookingApp.Controllers
 
                 if (suma > rezervare.SumaRamasaDePlata)
                 {
-                    return BadRequest(new { Mesaj = "Suma introdusă depășește suma totală rămasă de plată." });
+                    return BadRequest(new { Mesaj = "Suma depășește suma totală rămasă de plată." });
                 }
 
-                var clientSecret = await _serviciuPlata.ProceseazaPlataAsync(rezervareId, suma, "RON", "Plătă rezervare");
+                var clientSecret = await _serviciuPlata.ProceseazaPlataAsync(rezervareId, suma, "RON", "Plată rezervare");
                 rezervare.SumaRamasaDePlata -= suma;
                 rezervare.ClientSecret = clientSecret;
+
+                if (rezervare.SumaRamasaDePlata <= 0)
+                {
+                    rezervare.StarePlata = "Platita";
+                }
 
                 await _serviciuHotel.ActualizeazaRezervareAsync(rezervare);
 
                 return Ok(new
                 {
-                    Mesaj = "Plata inițiată cu succes.",
+                    Mesaj = rezervare.SumaRamasaDePlata > 0 ? "Plata procesată parțial." : "Plata procesată integral.",
                     SumaRamasaDePlata = rezervare.SumaRamasaDePlata,
                     ClientSecret = clientSecret
                 });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { Mesaj = ex.Message });
+                return StatusCode(500, new { Mesaj = $"Eroare la procesarea plății: {ex.Message}" });
             }
         }
 
-        [HttpPost("ProcesarePlataStripe")]
-        public async Task<IActionResult> ProcesarePlataStripe(int rezervareId)
+        [HttpPost("Refund")]
+        public async Task<IActionResult> ProcesareRefund([FromQuery] string paymentIntentId, [FromQuery] decimal? suma)
         {
+            if (string.IsNullOrEmpty(paymentIntentId))
+            {
+                return BadRequest(new { Mesaj = "ID-ul intenției de plată este necesar." });
+            }
+
             try
             {
-                var rezervare = await _serviciuHotel.GetRezervareByIdAsync(rezervareId);
-                if (rezervare == null)
-                {
-                    return BadRequest(new { Mesaj = $"Rezervarea cu ID-ul {rezervareId} nu există." });
-                }
-
-                if (rezervare.SumaRamasaDePlata > 0)
-                {
-                    return Ok(new { Mesaj = $"Plata procesată parțial. Mai sunt de achitat: {rezervare.SumaRamasaDePlata} RON." });
-                }
-
-                rezervare.StarePlata = "Platita";
-                await _serviciuHotel.ActualizeazaRezervareAsync(rezervare);
-
-                return Ok(new { Mesaj = "Plata procesată integral cu succes." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { Mesaj = $"Eroare la procesarea plății: {ex.Message}" });
-            }
-        }
-
-        [HttpPost("ProceseazaRefund")]
-        public async Task<IActionResult> ProceseazaRefund([FromQuery] string paymentIntentId, [FromQuery] decimal? suma)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(paymentIntentId))
-                {
-                    return BadRequest(new { Mesaj = "ID-ul intenției de plată este necesar." });
-                }
-
                 var statusRefund = await _serviciuPlata.ProceseazaRefundAsync(paymentIntentId, suma);
-
                 return Ok(new { Mesaj = "Refund procesat cu succes.", Status = statusRefund });
             }
             catch (Exception ex)
@@ -311,3 +328,4 @@ namespace BookingApp.Controllers
         }
     }
 }
+

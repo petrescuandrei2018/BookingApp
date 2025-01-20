@@ -9,7 +9,7 @@
         public string PhoneNumber { get; set; }
         public int Varsta { get; set; }
         public string Password { get; set; }
-        public string Rol { get; set; } // Schimbat în string
+        public string Rol { get; set; } = "user"; // Schimbat în string
     }
 
 }

@@ -1,29 +1,17 @@
-﻿using BookingApp.Models;
-using BookingApp.Models.Dtos;
+﻿using BookingApp.Models.Dtos;
+using BookingApp.Models;
 
-namespace BookingApp.Services.Abstractions
+public interface IAuthService
 {
-    public interface IAuthService
-    {
-        /// Generează un token JWT pe baza utilizatorului și a rolurilor
-        string GenereazaToken(string utilizatorId, IEnumerable<string> roluri);
+    string GenereazaToken(string utilizatorId, IEnumerable<string> roluri);
+    bool ValideazaUtilizator(string email, string parola);
+    string AutentificaUtilizator(string email, string parola);
+    Task<User> RegisterUser(UserDto userDto);
+    Task<User?> GetUserByIdAsync(int userId);
+    Task<bool> UpdateUserAsync(User user);
+    Task<List<User>> GetAllUsersAsync();
 
-        /// Validează dacă utilizatorul există și dacă datele sunt corecte
-        bool ValideazaUtilizator(string email, string parola);
-
-        /// Autentifică utilizatorul și returnează un token JWT
-        string AutentificaUtilizator(string email, string parola);
-
-        /// Înregistrează un utilizator nou
-        Task<User> RegisterUser(UserDto userDto);
-
-        /// Obține utilizatorul pe baza ID-ului
-        Task<User?> GetUserByIdAsync(int userId);
-
-        /// Actualizează datele unui utilizator
-        Task<bool> UpdateUserAsync(User user);
-
-        Task<List<User>> GetAllUsersAsync();
-
-    }
+    // Metode pentru validarea existenței
+    Task<bool> ExistaEmailAsync(string email);
+    Task<bool> ExistaTelefonAsync(string phoneNumber);
 }

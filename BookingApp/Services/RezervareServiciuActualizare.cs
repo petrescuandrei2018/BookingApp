@@ -43,8 +43,7 @@ namespace BookingApp.Services
                     rezervare.Stare = DeterminaStareaRezervarii(rezervare.CheckIn, rezervare.CheckOut);
 
                     // Ajustăm numărul de camere doar când rezervarea trece în starea Expirata
-                    if ((stareAnterioara == StareRezervare.Activa || stareAnterioara == StareRezervare.Viitoare) &&
-                        rezervare.Stare == StareRezervare.Expirata)
+                    if ((stareAnterioara == "Activa" || stareAnterioara == "Viitoare") && rezervare.Stare == "Expirata")
                     {
                         var tipCamera = _furnizorDateBd.TipCamere
                             .FirstOrDefault(tc => tc.TipCameraId == rezervare.PretCamera.TipCameraId);
@@ -57,13 +56,14 @@ namespace BookingApp.Services
                         }
                     }
 
+
                     // Calculăm numărul de nopți pentru rezervare
                     var numarNopti = (rezervare.CheckOut - rezervare.CheckIn).Days;
 
                     // Verificăm dacă numărul de nopți este valid
                     if (numarNopti <= 0)
                     {
-                        rezervare.Stare = StareRezervare.Expirata;
+                        rezervare.Stare = "Expirata";
                         rezervare.SumaTotala = 0;
                         rezervare.SumaRamasaDePlata = 0;
                         rezervare.SumaAchitata = 0;
@@ -90,18 +90,19 @@ namespace BookingApp.Services
         }
 
         // Metodă pentru determinarea stării rezervării
-        private StareRezervare DeterminaStareaRezervarii(DateTime dataCheckIn, DateTime dataCheckOut)
+        private string DeterminaStareaRezervarii(DateTime dataCheckIn, DateTime dataCheckOut)
         {
             var dataCurenta = DateTime.UtcNow;
 
             if (dataCheckOut < dataCurenta)
-                return StareRezervare.Expirata;
+                return "Expirata";
 
             if (dataCheckIn <= dataCurenta && dataCheckOut >= dataCurenta)
-                return StareRezervare.Activa;
+                return "Activa";
 
-            return StareRezervare.Viitoare;
+            return "Viitoare";
         }
+
 
         // Metodă principală care rulează în fundal pentru actualizarea periodică a rezervărilor
         protected override async Task ExecuteAsync(CancellationToken tokenAnulare)

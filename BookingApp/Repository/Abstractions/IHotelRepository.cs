@@ -24,6 +24,8 @@ namespace BookingApp.Repository.Abstractions
         Task ActualizeazaPlataPartialaAsync(int rezervareId, decimal sumaAchitata);
         Task<Rezervare> GetRezervareByPaymentIntentAsync(string paymentIntentId);
 
+        Task<PretCamera?> GetPretCameraById(int pretCameraId);
+        Task<int> GetDisponibilitateCamera(int pretCameraId);
     }
 
 }
