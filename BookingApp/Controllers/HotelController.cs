@@ -93,8 +93,6 @@ namespace BookingApp.Controllers
 
 
 
-
-
         [HttpPost("login")]
         public IActionResult Login([FromBody] LogInDto logInDto)
         {
@@ -123,27 +121,31 @@ namespace BookingApp.Controllers
 
         [HttpPost("CreateRezervare")]
         [Authorize]
-        public async Task<IActionResult> Rezerva([FromBody] RezervareDto rezervareDto)
+        public async Task<IActionResult> CreateRezervare([FromBody] RezervareDto rezervareDto)
         {
-            var response = new ResponseDto();
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { Mesaj = "Datele trimise nu sunt valide." });
+            }
 
             try
             {
-                // Obține ID-ul utilizatorului logat din token
-                var utilizatorId = int.Parse(User.Claims.First(c => c.Type == "UtilizatorId").Value);
+                // Obținem ID-ul utilizatorului conectat
+                rezervareDto.UserId = int.Parse(User.Claims.First(c => c.Type == "UtilizatorId").Value);
 
-                // Creează rezervarea
-                response.Result = await _serviciuHotel.CreateRezervareFromDto(rezervareDto, utilizatorId);
-                response.IsSuccess = true;
-                response.Message = "Rezervarea a fost creată cu succes.";
+                // Apelăm metoda din HotelService pentru a crea rezervarea
+                var rezultat = await _serviciuHotel.CreateRezervareFromDto(rezervareDto);
+
+                return Ok(new
+                {
+                    Mesaj = "Rezervarea a fost creată cu succes.",
+                    Rezervare = rezultat
+                });
             }
             catch (Exception ex)
             {
-                response.IsSuccess = false;
-                response.Message = ex.Message;
+                return StatusCode(500, new { Mesaj = $"A apărut o eroare: {ex.Message}" });
             }
-
-            return Ok(response);
         }
 
 

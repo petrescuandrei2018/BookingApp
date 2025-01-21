@@ -3,6 +3,7 @@ using BookingApp.Models;
 using BookingApp.Models.Dtos;
 using BookingApp.Repository.Abstractions;
 using BookingApp.Services.Abstractions;
+using Microsoft.EntityFrameworkCore;
 using Stripe;
 using System.Linq;
 
@@ -31,7 +32,6 @@ namespace BookingApp.Services
             await _hotelRepository.ActualizeazaRezervareAsync(rezervare);
         }
 
-
         // Metodă pentru procesarea plății Stripe pentru o rezervare
         public async Task ProcesarePlataStripeAsync(int rezervareId)
         {
@@ -48,56 +48,66 @@ namespace BookingApp.Services
         }
 
         // Metodă pentru crearea unei rezervări pornind de la DTO
-        public async Task<RezervareDto> CreateRezervareFromDto(RezervareDto rezervareDto, int userId)
+        public async Task<RezervareDto> CreateRezervareFromDto(RezervareDto rezervareDto)
         {
-            // Validare CheckIn și CheckOut
-            if (rezervareDto.CheckOut <= rezervareDto.CheckIn)
+            if (rezervareDto == null || string.IsNullOrEmpty(rezervareDto.NumeCamera))
             {
-                throw new ArgumentException("Data de CheckOut trebuie să fie după CheckIn.");
+                throw new ArgumentNullException(nameof(rezervareDto), "Datele rezervării sunt invalide.");
             }
 
-            // Obține camera
-            var pretCamera = await _hotelRepository.GetPretCameraById(rezervareDto.PretCameraId);
+            // Verificăm dacă hotelul există
+            var hotel = await _hotelRepository.GetHotelByNameAsync(rezervareDto.HotelName);
+            if (hotel == null)
+            {
+                throw new Exception($"Hotelul {rezervareDto.HotelName} nu există.");
+            }
+
+            // Găsim tipul de cameră
+            var tipCamera = await _hotelRepository.GetTipCameraByNameAsync(rezervareDto.NumeCamera);
+            if (tipCamera == null)
+            {
+                throw new Exception($"Tipul de cameră {rezervareDto.NumeCamera} nu există.");
+            }
+
+            // Găsim prețul camerei
+            var pretCamera = await _hotelRepository.GetPretCameraByTipCameraIdAsync(tipCamera.TipCameraId);
             if (pretCamera == null)
             {
-                throw new Exception($"Camera cu ID-ul {rezervareDto.PretCameraId} nu există.");
+                throw new Exception("Nu s-a găsit un preț pentru tipul de cameră specificat.");
             }
 
-            // Verifică disponibilitatea
-            var disponibilitate = await _hotelRepository.GetDisponibilitateCamera(rezervareDto.PretCameraId);
-            if (disponibilitate <= 0)
+            // Calculăm numărul de nopți și suma totală
+            var numarNopti = (rezervareDto.CheckOut - rezervareDto.CheckIn).Days;
+            if (numarNopti <= 0)
             {
-                throw new Exception("Nu există camere disponibile.");
+                throw new Exception("Intervalul CheckIn și CheckOut este invalid.");
             }
 
-            // Creează rezervarea
-            var durataSejur = (rezervareDto.CheckOut - rezervareDto.CheckIn).Days;
-            var sumaTotala = durataSejur * (decimal)pretCamera.PretNoapte;
+            var sumaTotala = numarNopti * (decimal)pretCamera.PretNoapte;
 
+            // Creăm obiectul rezervare
             var rezervare = new Rezervare
             {
-                UserId = userId,
-                PretCameraId = rezervareDto.PretCameraId,
+                UserId = rezervareDto.UserId,
+                PretCameraId = pretCamera.PretCameraId,
                 CheckIn = rezervareDto.CheckIn,
                 CheckOut = rezervareDto.CheckOut,
-                SumaTotala = sumaTotala,
-                SumaRamasaDePlata = sumaTotala,
                 Stare = "Viitoare",
-                StarePlata = "Neplatita",
-                ClientSecret = Guid.NewGuid().ToString()
+                SumaTotala = sumaTotala,
+                SumaAchitata = 0,
+                SumaRamasaDePlata = sumaTotala
             };
 
-            // Salvare
-            await _hotelRepository.AdaugaRezervare(rezervare, pretCamera.TipCameraId);
+            // Salvăm rezervarea
+            await _hotelRepository.AddRezervareAsync(rezervare);
 
-            // Returnare DTO
+            // Completăm DTO-ul de răspuns
             rezervareDto.Pret = sumaTotala;
-            rezervareDto.HotelName = pretCamera.TipCamera.Hotel.Name;
+            rezervareDto.HotelName = hotel.Name;
             rezervareDto.Stare = "Viitoare";
 
             return rezervareDto;
         }
-
 
         // Obține lista tuturor hotelurilor
         public async Task<List<ResponseHotelDto>> GetAllHotels()
@@ -219,6 +229,7 @@ namespace BookingApp.Services
                 Stare = r.Stare.ToString()
             }).ToList();
         }
+
         public async Task ProcesarePlataPartialaAsync(int rezervareId, decimal sumaAchitata)
         {
             if (sumaAchitata <= 0)
@@ -288,8 +299,6 @@ namespace BookingApp.Services
             }
         }
 
-
-
         public async Task RefundPaymentAsync(string paymentIntentId, decimal? suma)
         {
             var rezervare = await _hotelRepository.GetRezervareByPaymentIntentAsync(paymentIntentId);
@@ -308,6 +317,5 @@ namespace BookingApp.Services
             rezervare.StarePlata = "Refundata";
             await _hotelRepository.ActualizeazaRezervareAsync(rezervare);
         }
-
     }
 }

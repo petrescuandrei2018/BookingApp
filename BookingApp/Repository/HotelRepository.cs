@@ -113,18 +113,45 @@ namespace BookingApp.Repository
             return await _database.TipCamere.ToListAsync();
         }
 
-        public async Task AdaugaRezervare(Rezervare rezervare, int tipCameraId)
+        public async Task AddRezervareAsync(Rezervare rezervare)
         {
-            // Adaugăm rezervarea
-            _database.Rezervari.Add(rezervare);
+            try
+            {
+                _database.Rezervari.Add(rezervare);
 
-            // Actualizăm disponibilitatea camerei
-            var tipCamera = await _database.TipCamere.FirstAsync(tc => tc.TipCameraId == tipCameraId);
-            tipCamera.NrCamereDisponibile--;
-            tipCamera.NrCamereOcupate++;
+                // Actualizează disponibilitatea camerei
+                var tipCamera = await _database.TipCamere.FirstOrDefaultAsync(tc => tc.TipCameraId == rezervare.PretCamera.TipCameraId);
+                if (tipCamera != null)
+                {
+                    tipCamera.NrCamereDisponibile--;
+                    tipCamera.NrCamereOcupate++;
+                }
 
-            await _database.SaveChangesAsync();
+                await _database.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Eroare la salvarea rezervării: {ex.Message}");
+                throw;
+            }
         }
+
+        public async Task<Hotel?> GetHotelByNameAsync(string hotelName)
+        {
+            return await _database.Hotels
+                .FirstOrDefaultAsync(h => h.Name == hotelName);
+        }
+
+        public async Task<TipCamera> GetTipCameraByNameAsync(string numeCamera)
+        {
+            return await _database.TipCamere.FirstOrDefaultAsync(tc => tc.Name == numeCamera);
+        }
+
+        public async Task<PretCamera> GetPretCameraByTipCameraIdAsync(int tipCameraId)
+        {
+            return await _database.PretCamere.FirstOrDefaultAsync(pc => pc.TipCameraId == tipCameraId);
+        }
+
 
 
         public async Task<Rezervare> GetRezervareByIdAsync(int rezervareId)

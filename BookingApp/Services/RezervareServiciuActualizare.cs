@@ -4,6 +4,7 @@ using BookingApp.Services.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using System;
+using System.Data.SqlTypes;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,63 +30,71 @@ namespace BookingApp.Services
             {
                 var _furnizorDateBd = contextServicii.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                // Obținem toate rezervările împreună cu camerele aferente
-                var rezervari = await _furnizorDateBd.Rezervari
-                    .Include(r => r.PretCamera)
-                    .ToListAsync();
-
-                foreach (var rezervare in rezervari)
+                try
                 {
-                    // Salvăm starea anterioară a rezervării
-                    var stareAnterioara = rezervare.Stare;
+                    // Obținem toate rezervările, incluzând camerele, dar gestionăm cazurile de `null`
+                    var rezervari = await _furnizorDateBd.Rezervari
+                        .Include(r => r.PretCamera)
+                        .Where(r => r.PretCamera != null && r.PretCamera.PretNoapte > 0) // Asigură-te că Prețul camerei este valid
+                        .ToListAsync();
 
-                    // Determinăm noua stare a rezervării pe baza datelor CheckIn și CheckOut
-                    rezervare.Stare = DeterminaStareaRezervarii(rezervare.CheckIn, rezervare.CheckOut);
-
-                    // Ajustăm numărul de camere doar când rezervarea trece în starea Expirata
-                    if ((stareAnterioara == "Activa" || stareAnterioara == "Viitoare") && rezervare.Stare == "Expirata")
+                    foreach (var rezervare in rezervari)
                     {
-                        var tipCamera = _furnizorDateBd.TipCamere
-                            .FirstOrDefault(tc => tc.TipCameraId == rezervare.PretCamera.TipCameraId);
+                        // Salvăm starea anterioară a rezervării
+                        var stareAnterioara = rezervare.Stare;
 
-                        if (tipCamera != null)
+                        // Determinăm noua stare a rezervării pe baza datelor CheckIn și CheckOut
+                        rezervare.Stare = DeterminaStareaRezervarii(rezervare.CheckIn, rezervare.CheckOut);
+
+                        // Ajustăm numărul de camere doar când rezervarea trece în starea Expirata
+                        if ((stareAnterioara == "Activa" || stareAnterioara == "Viitoare") && rezervare.Stare == "Expirata")
                         {
-                            // Incrementăm camerele disponibile și decrementăm camerele ocupate
-                            tipCamera.NrCamereDisponibile++;
-                            tipCamera.NrCamereOcupate--;
+                            var tipCamera = _furnizorDateBd.TipCamere
+                                .FirstOrDefault(tc => tc.TipCameraId == rezervare.PretCamera.TipCameraId);
+
+                            if (tipCamera != null)
+                            {
+                                // Incrementăm camerele disponibile și decrementăm camerele ocupate
+                                tipCamera.NrCamereDisponibile++;
+                                tipCamera.NrCamereOcupate--;
+                            }
                         }
+
+                        // Calculăm numărul de nopți pentru rezervare
+                        var numarNopti = (rezervare.CheckOut - rezervare.CheckIn).Days;
+
+                        // Verificăm dacă numărul de nopți este valid
+                        if (numarNopti <= 0)
+                        {
+                            rezervare.Stare = "Expirata";
+                            rezervare.SumaTotala = 0;
+                            rezervare.SumaRamasaDePlata = 0;
+                            rezervare.SumaAchitata = 0;
+                            continue;
+                        }
+
+                        // Verificăm prețul pe noapte
+                        if (rezervare.PretCamera?.PretNoapte <= 0)
+                        {
+                            rezervare.SumaTotala = 0;
+                            rezervare.SumaRamasaDePlata = 0;
+                            rezervare.SumaAchitata = 0;
+                            continue;
+                        }
+
+                        // Calculăm sumele
+                        rezervare.SumaTotala = numarNopti * (decimal)rezervare.PretCamera.PretNoapte;
+                        rezervare.SumaRamasaDePlata = rezervare.SumaTotala - rezervare.SumaAchitata;
                     }
 
-
-                    // Calculăm numărul de nopți pentru rezervare
-                    var numarNopti = (rezervare.CheckOut - rezervare.CheckIn).Days;
-
-                    // Verificăm dacă numărul de nopți este valid
-                    if (numarNopti <= 0)
-                    {
-                        rezervare.Stare = "Expirata";
-                        rezervare.SumaTotala = 0;
-                        rezervare.SumaRamasaDePlata = 0;
-                        rezervare.SumaAchitata = 0;
-                        continue;
-                    }
-
-                    // Verificăm prețul pe noapte
-                    if (rezervare.PretCamera?.PretNoapte <= 0)
-                    {
-                        rezervare.SumaTotala = 0;
-                        rezervare.SumaRamasaDePlata = 0;
-                        rezervare.SumaAchitata = 0;
-                        continue;
-                    }
-
-                    // Calculăm sumele
-                    rezervare.SumaTotala = numarNopti * (decimal)rezervare.PretCamera.PretNoapte;
-                    rezervare.SumaRamasaDePlata = rezervare.SumaTotala - rezervare.SumaAchitata;
+                    // Salvăm modificările în baza de date
+                    await _furnizorDateBd.SaveChangesAsync();
                 }
-
-                // Salvăm modificările în baza de date
-                await _furnizorDateBd.SaveChangesAsync();
+                catch (SqlNullValueException ex)
+                {
+                    // Loghează eroarea sau gestionează mai bine excepțiile în funcție de necesități
+                    Console.WriteLine($"A apărut o eroare: {ex.Message}");
+                }
             }
         }
 
@@ -102,7 +111,6 @@ namespace BookingApp.Services
 
             return "Viitoare";
         }
-
 
         // Metodă principală care rulează în fundal pentru actualizarea periodică a rezervărilor
         protected override async Task ExecuteAsync(CancellationToken tokenAnulare)

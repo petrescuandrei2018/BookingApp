@@ -1,16 +1,21 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.Text.Json.Serialization;
 
-namespace BookingApp.Models.Dtos
+public class RezervareDto
 {
-    public class RezervareDto
-    {
-        public int RezervareId { get; set; } // Adăugat
-        public int UserId { get; set; }
-        public int PretCameraId { get; set; }
-        public DateTime CheckIn { get; set; }
-        public DateTime CheckOut { get; set; }
-        public decimal Pret { get; set; } // Adăugat
-        public string HotelName { get; set; } // Adăugat
-        public string Stare { get; set; } // Adăugat
-    }
+    [JsonIgnore]
+    public int RezervareId { get; set; } // Generat automat
+
+    [JsonIgnore]
+    public int UserId { get; set; } // Preluat din JWT
+
+    public string HotelName { get; set; } // Setat automat în backend
+    public string NumeCamera { get; set; } // Tipul camerei
+    public DateTime CheckIn { get; set; } // Data Check-In
+    public DateTime CheckOut { get; set; } // Data Check-Out
+
+    [JsonIgnore]
+    public decimal Pret { get; set; } // Calculat automat
+
+    [JsonIgnore]
+    public string Stare { get; set; } = "Viitoare"; // Implicit "Viitoare"
 }

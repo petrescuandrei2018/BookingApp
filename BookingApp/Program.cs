@@ -52,6 +52,8 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.LogTo(Console.WriteLine, LogLevel.Information); // Log detaliat
+
 });
 
 IMapper mapper = MappingConfig.RegisterMaps().CreateMapper();
@@ -167,6 +169,7 @@ app.Use(async (context, next) =>
     await next();
 });
 
+app.UseRouting();
 // Configurăm pipeline-ul pentru autentificare și autorizare
 app.UseAuthentication();
 app.UseAuthorization();
@@ -185,6 +188,6 @@ if (app.Environment.IsDevelopment())
 }
 
 // Mapăm rutele pentru controlere
-app.UseRouting();
+
 app.MapControllers();
 app.Run();
