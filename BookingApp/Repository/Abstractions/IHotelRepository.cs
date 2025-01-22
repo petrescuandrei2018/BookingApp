@@ -11,7 +11,7 @@ namespace BookingApp.Repository.Abstractions
         Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPret();
         Task<List<HotelTipCameraPretReview>> GetAllHotelsByRating();
         Task<List<Review>> GetAllReviews();
-        Task<IEnumerable<Rezervare>> GetNonExpiredRezervari();
+        Task<IEnumerable<GetAllRezervariDto>> GetNonExpiredRezervari();
         Task<List<PretCamera>> GetAllPretCamere();
         Task<List<Rezervare>> GetAllRezervariAsync();
         Task<List<TipCamera>> GetAllTipCamereAsync();

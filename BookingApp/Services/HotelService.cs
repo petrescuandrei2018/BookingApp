@@ -69,6 +69,12 @@ namespace BookingApp.Services
                 throw new Exception($"Tipul de cameră {rezervareDto.NumeCamera} nu există.");
             }
 
+            if(tipCamera.NrCamereDisponibile <= 0)
+            {
+                throw new Exception($"Tipul de cameră {rezervareDto.NumeCamera} nu mai are camere disponibile.");
+
+            }
+
             // Găsim prețul camerei
             var pretCamera = await _hotelRepository.GetPretCameraByTipCameraIdAsync(tipCamera.TipCameraId);
             if (pretCamera == null)
@@ -125,6 +131,33 @@ namespace BookingApp.Services
                 hotels = hotels.Where(x => x.Name == filtruNume).ToList();
             }
             return _mapper.Map<List<ResponseHotelDto>>(hotels);
+        }
+
+        // Obține lista tuturor rezervărilor
+        public async Task<List<GetAllRezervariDto>> GetAllRezervariAsync()
+        {
+            var rezervari = await _hotelRepository.GetAllRezervariAsync();
+            var hotels = await _hotelRepository.GetAllHotels();
+            var pretCamere = await _hotelRepository.GetAllPretCamere();
+            var tipCamere = await _hotelRepository.GetAllTipCamereAsync();
+
+            return rezervari.Select(rezervare =>
+            {
+                var camera = pretCamere.FirstOrDefault(pc => pc.PretCameraId == rezervare.PretCameraId);
+                var tipCamera = tipCamere.FirstOrDefault(tc => tc.TipCameraId == camera?.TipCameraId);
+                var hotel = hotels.FirstOrDefault(h => h.HotelId == tipCamera?.HotelId);
+
+                return new GetAllRezervariDto
+                {
+                    RezervareId = rezervare.RezervareId,
+                    UserId = rezervare.UserId,
+                    HotelName = hotel?.Name,
+                    CheckIn = rezervare.CheckIn,
+                    CheckOut = rezervare.CheckOut,
+                    Pret = (decimal)(camera?.PretNoapte ?? 0),
+                    Stare = rezervare.Stare.ToString(),
+                };
+            }).ToList();
         }
 
         // Obține lista hotelurilor împreună cu rating-urile acestora
@@ -188,34 +221,9 @@ namespace BookingApp.Services
             return hotelsTipCamerePret;
         }
 
-        // Obține lista tuturor rezervărilor
-        public async Task<List<GetAllRezervariDto>> GetAllRezervariAsync()
-        {
-            var rezervari = await _hotelRepository.GetAllRezervariAsync();
-            var hotels = await _hotelRepository.GetAllHotels();
-            var pretCamere = await _hotelRepository.GetAllPretCamere();
-            var tipCamere = await _hotelRepository.GetAllTipCamereAsync();
-
-            return rezervari.Select(rezervare =>
-            {
-                var camera = pretCamere.FirstOrDefault(pc => pc.PretCameraId == rezervare.PretCameraId);
-                var tipCamera = tipCamere.FirstOrDefault(tc => tc.TipCameraId == camera?.TipCameraId);
-                var hotel = hotels.FirstOrDefault(h => h.HotelId == tipCamera?.HotelId);
-
-                return new GetAllRezervariDto
-                {
-                    UserId = rezervare.UserId,
-                    HotelName = hotel?.Name,
-                    CheckIn = rezervare.CheckIn,
-                    CheckOut = rezervare.CheckOut,
-                    Pret = (decimal)(camera?.PretNoapte ?? 0),
-                    Stare = rezervare.Stare.ToString(),
-                };
-            }).ToList();
-        }
 
         // Obține lista rezervărilor care nu sunt expirate
-        public async Task<IEnumerable<RezervareDto>> GetNonExpiredRezervari()
+        public async Task<IEnumerable<GetAllRezervariDto>> GetNonExpiredRezervari()
         {
             var rezervari = await _hotelRepository.GetNonExpiredRezervari();
             return rezervari.Select(r => new RezervareDto

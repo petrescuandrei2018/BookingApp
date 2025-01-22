@@ -13,16 +13,25 @@ namespace BookingApp.Repository
     {
         private readonly AppDbContext _database;
         private readonly IServiciuCacheRedis _serviciuCacheRedis;
+        private readonly IMapper _mapper;
 
         public HotelRepository(AppDbContext database, IMapper mapper, IServiciuCacheRedis serviciuCacheRedis)
         {
             _database = database;
             _serviciuCacheRedis = serviciuCacheRedis;
+            _mapper = mapper;
         }
 
         public async Task<List<Hotel>> GetAllHotels()
         {
-            return await _database.Hotels.ToListAsync();
+            var hotels = await _database.Hotels.ToListAsync();
+            return hotels;
+        }
+
+        public async Task<List<Rezervare>> GetAllRezervariAsync()
+        {
+            var rezervari =  await _database.Rezervari.ToListAsync();
+            return rezervari;
         }
 
         public async Task<List<HotelTipCamera>> GetAllHotelsTipCamera()
@@ -93,19 +102,16 @@ namespace BookingApp.Repository
             return await _database.Reviews.ToListAsync();
         }
 
-        public async Task<IEnumerable<Rezervare>> GetNonExpiredRezervari()
+        public async Task<IEnumerable<GetAllRezervariDto>> GetNonExpiredRezervari()
         {
-            return await _database.Rezervari.Where(r => r.CheckOut > DateTime.UtcNow).ToListAsync();
+            var rezervari =  await _database.Rezervari.Where(r => r.CheckOut > DateTime.UtcNow).ToListAsync();
+            var rezervariAuxiliar = _mapper.Map<List<GetAllRezervariDto>>(rezervari);
+            return rezervariAuxiliar;
         }
 
         public async Task<List<PretCamera>> GetAllPretCamere()
         {
             return await _database.PretCamere.ToListAsync();
-        }
-
-        public async Task<List<Rezervare>> GetAllRezervariAsync()
-        {
-            return await _database.Rezervari.ToListAsync();
         }
 
         public async Task<List<TipCamera>> GetAllTipCamereAsync()

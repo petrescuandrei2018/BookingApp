@@ -14,7 +14,7 @@ namespace BookingApp.Services.Abstractions
         Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPretFiltered(string? filtruNumeHotel, int? capacitatePersoane, float? pretCamera);
         Task<List<GetAllRezervariDto>> GetAllRezervariAsync();
         Task<RezervareDto> CreateRezervareFromDto(RezervareDto rezervareDto);
-        Task<IEnumerable<RezervareDto>> GetNonExpiredRezervari();
+        Task<IEnumerable<GetAllRezervariDto>> GetNonExpiredRezervari();
         Task ProcesarePlataStripeAsync(int rezervareId);
         Task<Rezervare> GetRezervareByIdAsync(int rezervareId);
         Task ActualizeazaRezervareAsync(Rezervare rezervare);

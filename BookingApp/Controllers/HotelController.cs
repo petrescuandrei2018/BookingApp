@@ -152,7 +152,6 @@ namespace BookingApp.Controllers
 
 
         [HttpGet("GetAllRezervari")]
-        [Authorize]
         public async Task<ResponseDto> GetAllRezervari()
         {
             var response = new ResponseDto();

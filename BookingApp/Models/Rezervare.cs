@@ -20,7 +20,7 @@ public class Rezervare : BaseEntity
 
     public string Stare { get; set; }
     public string StarePlata { get; set; } = "Neplatita";
-    public string ClientSecret { get; set; }
+    public string? ClientSecret { get; set; }
 
     public decimal SumaTotala { get; set; }
     public decimal SumaAchitata { get; set; }
