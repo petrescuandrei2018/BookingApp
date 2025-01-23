@@ -6,6 +6,7 @@ using BookingApp.Models.Dtos;
 using BookingApp.Repository.Abstractions;
 using BookingApp.Services.Abstractions;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace BookingApp.Repository
 {
@@ -102,11 +103,14 @@ namespace BookingApp.Repository
             return await _database.Reviews.ToListAsync();
         }
 
-        public async Task<IEnumerable<GetAllRezervariDto>> GetNonExpiredRezervari()
+        public async Task<List<Rezervare>> GetNonExpiredRezervari()
         {
-            var rezervari =  await _database.Rezervari.Where(r => r.CheckOut > DateTime.UtcNow).ToListAsync();
-            var rezervariAuxiliar = _mapper.Map<List<GetAllRezervariDto>>(rezervari);
-            return rezervariAuxiliar;
+            return await _database.Rezervari
+                .Include(r => r.PretCamera)
+                .ThenInclude(pc => pc.TipCamera)
+                .ThenInclude(tc => tc.Hotel)
+                .Where(r => r.CheckOut > DateTime.UtcNow)
+                .ToListAsync();
         }
 
         public async Task<List<PretCamera>> GetAllPretCamere()

@@ -147,17 +147,18 @@ namespace BookingApp.Services
                 var tipCamera = tipCamere.FirstOrDefault(tc => tc.TipCameraId == camera?.TipCameraId);
                 var hotel = hotels.FirstOrDefault(h => h.HotelId == tipCamera?.HotelId);
 
-                return new GetAllRezervariDto
-                {
-                    RezervareId = rezervare.RezervareId,
-                    UserId = rezervare.UserId,
-                    HotelName = hotel?.Name,
-                    CheckIn = rezervare.CheckIn,
-                    CheckOut = rezervare.CheckOut,
-                    Pret = (decimal)(camera?.PretNoapte ?? 0),
-                    Stare = rezervare.Stare.ToString(),
-                };
+                return new GetAllRezervariDto(
+                    rezervare.RezervareId,
+                    rezervare.UserId,
+                    hotel?.Name,
+                    tipCamera?.Name, // Aici setezi NumeCamera din tipCamera
+                    rezervare.CheckIn,
+                    rezervare.CheckOut,
+                    (decimal?)camera?.PretNoapte ?? 0,
+                    rezervare.Stare
+                );
             }).ToList();
+
         }
 
         // Obține lista hotelurilor împreună cu rating-urile acestora
@@ -225,16 +226,27 @@ namespace BookingApp.Services
         // Obține lista rezervărilor care nu sunt expirate
         public async Task<IEnumerable<GetAllRezervariDto>> GetNonExpiredRezervari()
         {
+            // Obține lista de Rezervari din repository
             var rezervari = await _hotelRepository.GetNonExpiredRezervari();
-            return rezervari.Select(r => new RezervareDto
+
+            // Transformă fiecare Rezervare în GetAllRezervariDto
+            return rezervari.Select(r =>
             {
-                RezervareId = r.RezervareId,
-                UserId = r.UserId,
-                HotelName = r.PretCamera?.TipCamera?.Hotel?.Name ?? "Hotel necunoscut", // Verificare pentru null
-                CheckIn = r.CheckIn,
-                CheckOut = r.CheckOut,
-                Pret = (decimal)(r.PretCamera?.PretNoapte ?? 0), // Default 0 dacă PretCamera este null
-                Stare = r.Stare.ToString()
+                // Accesează relațiile și atribuie valorile
+                var hotelName = r.PretCamera?.TipCamera?.Hotel?.Name ?? "Hotel necunoscut";
+                var numeCamera = r.PretCamera?.TipCamera?.Name ?? "Tip cameră necunoscut";
+                var pret = r.PretCamera?.PretNoapte ?? 0; // Default 0 dacă PretCamera este null
+
+                return new GetAllRezervariDto(
+                    r.RezervareId,
+                    r.UserId,
+                    hotelName,
+                    numeCamera,
+                    r.CheckIn,
+                    r.CheckOut,
+                    (decimal)pret, // Conversie din float în decimal
+                    r.Stare
+                );
             }).ToList();
         }
 
