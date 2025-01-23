@@ -278,23 +278,27 @@ namespace BookingApp.Controllers
                     return BadRequest(new { Mesaj = $"Rezervarea cu ID-ul {rezervareId} nu există." });
                 }
 
-                rezervare.CalculareSumaTotala();
+                rezervare.CalculareSumaTotala(); // Asigură-te că SumaTotala este calculată corect.
 
                 if (suma > rezervare.SumaRamasaDePlata)
                 {
-                    return BadRequest(new { Mesaj = "Suma depășește suma totală rămasă de plată." });
+                    if (rezervare.SumaRamasaDePlata <= 0)
+                    {
+                        rezervare.StarePlata = "Platita";  // Marcare ca platit complet
+                        return BadRequest(new { Mesaj = $"Suma a fost achitata integral" });
+
+                    }
+                    return BadRequest(new { Mesaj = $"Suma depășește suma totală rămasă de plată. A mai ramas de platit {rezervare.SumaRamasaDePlata}" });
                 }
 
                 var clientSecret = await _serviciuPlata.ProceseazaPlataAsync(rezervareId, suma, "RON", "Plată rezervare");
+
+                // Actualizează câmpurile SumaRamasaDePlata și SumaAchitata
                 rezervare.SumaRamasaDePlata -= suma;
+                rezervare.SumaAchitata += suma;
                 rezervare.ClientSecret = clientSecret;
 
-                if (rezervare.SumaRamasaDePlata <= 0)
-                {
-                    rezervare.StarePlata = "Platita";
-                }
-
-                await _serviciuHotel.ActualizeazaRezervareAsync(rezervare);
+                await _serviciuHotel.ActualizeazaRezervareAsync(rezervare); // Salvează modificările în DB
 
                 return Ok(new
                 {
@@ -308,6 +312,7 @@ namespace BookingApp.Controllers
                 return StatusCode(500, new { Mesaj = $"Eroare la procesarea plății: {ex.Message}" });
             }
         }
+
 
         [HttpPost("Refund")]
         public async Task<IActionResult> ProcesareRefund([FromQuery] string paymentIntentId, [FromQuery] decimal? suma)
