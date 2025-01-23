@@ -52,7 +52,7 @@ namespace BookingApp.Migrations
 
                     b.HasKey("HotelId");
 
-                    b.ToTable("Hotels");
+                    b.ToTable("Hotels", (string)null);
 
                     b.HasData(
                         new
@@ -98,8 +98,8 @@ namespace BookingApp.Migrations
                     b.Property<DateTime?>("LastModifiedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<float>("PretNoapte")
-                        .HasColumnType("real");
+                    b.Property<decimal>("PretNoapte")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("StartPretCamera")
                         .HasColumnType("datetime2");
@@ -111,14 +111,14 @@ namespace BookingApp.Migrations
 
                     b.HasIndex("TipCameraId");
 
-                    b.ToTable("PretCamere");
+                    b.ToTable("PretCamere", (string)null);
 
                     b.HasData(
                         new
                         {
                             PretCameraId = 1,
                             EndPretCamera = new DateTime(2024, 12, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PretNoapte = 900f,
+                            PretNoapte = 900m,
                             StartPretCamera = new DateTime(2024, 10, 10, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             TipCameraId = 3
                         },
@@ -126,7 +126,7 @@ namespace BookingApp.Migrations
                         {
                             PretCameraId = 2,
                             EndPretCamera = new DateTime(2024, 12, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PretNoapte = 700f,
+                            PretNoapte = 700m,
                             StartPretCamera = new DateTime(2024, 12, 10, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             TipCameraId = 4
                         },
@@ -134,7 +134,7 @@ namespace BookingApp.Migrations
                         {
                             PretCameraId = 3,
                             EndPretCamera = new DateTime(2024, 12, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PretNoapte = 500f,
+                            PretNoapte = 500m,
                             StartPretCamera = new DateTime(2024, 9, 25, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             TipCameraId = 5
                         },
@@ -142,7 +142,7 @@ namespace BookingApp.Migrations
                         {
                             PretCameraId = 4,
                             EndPretCamera = new DateTime(2024, 12, 12, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            PretNoapte = 550f,
+                            PretNoapte = 550m,
                             StartPretCamera = new DateTime(2024, 8, 9, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             TipCameraId = 6
                         });
@@ -175,7 +175,7 @@ namespace BookingApp.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Reviews");
+                    b.ToTable("Reviews", (string)null);
 
                     b.HasData(
                         new
@@ -263,7 +263,7 @@ namespace BookingApp.Migrations
 
                     b.HasIndex("HotelId");
 
-                    b.ToTable("TipCamere");
+                    b.ToTable("TipCamere", (string)null);
 
                     b.HasData(
                         new
@@ -344,14 +344,14 @@ namespace BookingApp.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
 
                     b.HasData(
                         new
                         {
                             UserId = 1,
                             Email = "mihai@gmail.com",
-                            Password = "$2a$11$mcY1RoyXQYY7.By.2Of1puHXd7KkX9ZlyP4xAwnRX8lVGEufNIPAC",
+                            Password = "$2a$11$/0EbQOyhBzORPgoxn2JTIOBq..URwAkw0M2mR9dZeH.XlMdjmvwYe",
                             PhoneNumber = "0775695878",
                             Rol = "admin",
                             UserName = "Mihai",
@@ -361,7 +361,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 2,
                             Email = "nicu@gmail.com",
-                            Password = "$2a$11$8vZKI0XPKGEMFx6LNY.38egXJ/c3V6hKdcXaw.Gzioh1AH2OGleqO",
+                            Password = "$2a$11$vYWL88.CtJdPn5Fis0d5mu8SifUEGcXeJcPGhLAc9XQYJGMwXLLQe",
                             PhoneNumber = "0770605078",
                             Rol = "admin",
                             UserName = "Nicu",
@@ -371,7 +371,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 3,
                             Email = "alex@gmail.com",
-                            Password = "$2a$11$26wzsjr/cPx1oD7HO4X3tuZ/9NZe4oh1meOkzVWTEuS0I.p84slV.",
+                            Password = "$2a$11$/nM33WuKquGzrFqWRfqPvOVYBTQ1d/wPvz60xkeGgcgQkf6om6dFC",
                             PhoneNumber = "0765665668",
                             Rol = "user",
                             UserName = "Alex",
@@ -394,7 +394,6 @@ namespace BookingApp.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("ClientSecret")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("CreatedBy")
@@ -438,7 +437,7 @@ namespace BookingApp.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Rezervari");
+                    b.ToTable("Rezervari", (string)null);
                 });
 
             modelBuilder.Entity("BookingApp.Models.PretCamera", b =>

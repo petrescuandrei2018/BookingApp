@@ -16,11 +16,11 @@ namespace BookingApp.Data
         public DbSet<Rezervare> Rezervari { get; set; }
 
         // Adăugăm această metodă
-        /*protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             optionsBuilder.ConfigureWarnings(warnings =>
                 warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
-        }*/
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
