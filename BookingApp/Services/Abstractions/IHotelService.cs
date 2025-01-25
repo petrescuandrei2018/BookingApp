@@ -20,6 +20,7 @@ namespace BookingApp.Services.Abstractions
         Task ActualizeazaRezervareAsync(Rezervare rezervare);
         Task ProcesarePlataPartialaAsync(int rezervareId, decimal sumaAchitata);
         Task RefundPaymentAsync(string paymentIntentId, decimal? suma);
+        Task<List<object>> GetRezervariEligibileRefund();
 
     }
 }

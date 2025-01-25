@@ -30,6 +30,8 @@ namespace BookingApp.Repository.Abstractions
         Task<TipCamera> GetTipCameraByNameAsync(string numeCamera);
         Task<PretCamera> GetPretCameraByTipCameraIdAsync(int tipCameraId);
         Task<Hotel?> GetHotelByNameAsync(string hotelName);
+        Task<List<Rezervare>> GetAllRezervariCompletAsync();
+
 
     }
 

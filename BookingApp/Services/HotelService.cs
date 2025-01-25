@@ -27,6 +27,29 @@ namespace BookingApp.Services
             return await _hotelRepository.GetRezervareByIdAsync(rezervareId);
         }
 
+        public async Task<List<object>> GetRezervariEligibileRefund()
+        {
+            // Obține toate rezervările complete din repository
+            var rezervari = await _hotelRepository.GetAllRezervariCompletAsync();
+
+            // Filtrăm rezervările eligibile pentru refund și calculăm StarePlata
+            var rezervariEligibile = rezervari
+                .Where(r => r.SumaAchitata > 0) // Filtrăm doar rezervările plătite parțial sau integral
+                .Select(r => new
+                {
+                    r.RezervareId,
+                    r.SumaTotala,
+                    r.SumaAchitata,
+                    r.SumaRamasaDePlata,
+                    StarePlata = r.SumaRamasaDePlata == 0
+                        ? "Platita"
+                        : (r.SumaAchitata > 0 ? "In Progress" : "Neplatita")
+                })
+                .ToList<object>();
+
+            return rezervariEligibile;
+        }
+
         public async Task ActualizeazaRezervareAsync(Rezervare rezervare)
         {
             await _hotelRepository.ActualizeazaRezervareAsync(rezervare);
@@ -302,9 +325,14 @@ namespace BookingApp.Services
                 rezervare.SumaAchitata += sumaAchitata;
                 rezervare.SumaRamasaDePlata -= sumaAchitata;
 
+                // Actualizează StarePlata în funcție de noile valori
                 if (rezervare.SumaRamasaDePlata == 0)
                 {
-                    rezervare.StarePlata = "Platita";
+                    rezervare.StarePlata = "Platita"; // Marchează plata ca integrală
+                }
+                else
+                {
+                    rezervare.StarePlata = "In Progress"; // Încă mai sunt sume de plată
                 }
 
                 await _hotelRepository.ActualizeazaRezervareAsync(rezervare);

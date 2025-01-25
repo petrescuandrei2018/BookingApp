@@ -4,6 +4,7 @@ using BookingApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookingApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250124134346_AddPaymentIntentIdToRezervari")]
+    partial class AddPaymentIntentIdToRezervari
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -351,7 +354,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 1,
                             Email = "mihai@gmail.com",
-                            Password = "$2a$11$7.SPtZaFFjHfYw.9uFqT1eKNaPV9aVJHbdmomwXQxmYlyG9jTTuDa",
+                            Password = "$2a$11$8ulyu2PWug.7QpzvRyiSdeS55zZGVxk95XBAjRLaN1LkjDlykQRVK",
                             PhoneNumber = "0775695878",
                             Rol = "admin",
                             UserName = "Mihai",
@@ -361,7 +364,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 2,
                             Email = "nicu@gmail.com",
-                            Password = "$2a$11$vp4CmMGk55PNL.vtfv7QzO9n0ulrlJT.N9vWVJxjpsgjtbahy7cQC",
+                            Password = "$2a$11$Y7xbXs3KN2p2w/n2rZjj3u9KBgit6/7zinZKfZnB/kACJvLOcu45y",
                             PhoneNumber = "0770605078",
                             Rol = "admin",
                             UserName = "Nicu",
@@ -371,7 +374,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 3,
                             Email = "alex@gmail.com",
-                            Password = "$2a$11$NoMBuMeRH1oqEX3aFGzjeOogSxdVBS.uFnKWCZnxn8SNmYPCquToW",
+                            Password = "$2a$11$WPPOlwb3XhhjJA8R0135Ge5ymPJ9/kLMrm3Jgrr5tz1BVf50zafTO",
                             PhoneNumber = "0765665668",
                             Rol = "user",
                             UserName = "Alex",
