@@ -21,9 +21,11 @@ namespace BookingApp.Services
 
         public async Task ActualizeazaRezervariAsync()
         {
-            using (var contextServicii = _furnizorServicii.CreateScope())
+            using (var scope = _furnizorServicii.CreateScope())
             {
-                var _furnizorDateBd = contextServicii.ServiceProvider.GetRequiredService<AppDbContext>();
+                var _furnizorDateBd = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var _serviciuPlata = scope.ServiceProvider.GetRequiredService<IServiciuPlata>();
+                var _serviciuEmail = scope.ServiceProvider.GetRequiredService<IServiciuEmail>();
 
                 try
                 {
@@ -39,6 +41,23 @@ namespace BookingApp.Services
 
                         if (stareAnterioara != rezervare.Stare && rezervare.Stare == "Expirata")
                         {
+                            // Refund automat
+                            if (rezervare.SumaAchitata > 0)
+                            {
+                                await _serviciuPlata.ProceseazaRefundAsync(rezervare.ClientSecret, rezervare.SumaAchitata);
+                                rezervare.SumaAchitata = 0;
+                                rezervare.SumaRamasaDePlata = rezervare.SumaTotala;
+                                rezervare.StarePlata = "Refundata";
+
+                                // Trimite email utilizatorului
+                                await _serviciuEmail.TrimiteEmailAsync(
+                                    "email.utilizator@exemplu.com", // Înlocuiește cu emailul real al utilizatorului
+                                    "Rezervare expirată și refund procesat",
+                                    $"Rezervarea cu ID-ul {rezervare.RezervareId} a expirat. Refundul de {rezervare.SumaTotala} a fost procesat."
+                                );
+                            }
+
+                            // Actualizează disponibilitatea camerei
                             var tipCamera = await _furnizorDateBd.TipCamere
                                 .FirstOrDefaultAsync(tc => tc.TipCameraId == rezervare.PretCamera.TipCameraId);
 
@@ -72,6 +91,7 @@ namespace BookingApp.Services
                 }
             }
         }
+
 
         private string DeterminaStareaRezervarii(DateTime dataCheckIn, DateTime dataCheckOut)
         {

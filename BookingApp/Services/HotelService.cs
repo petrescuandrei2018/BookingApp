@@ -14,12 +14,13 @@ namespace BookingApp.Services
     {
         private readonly IHotelRepository _hotelRepository;
         private readonly IMapper _mapper;
+        private readonly IServiciuEmail _serviciuEmail;
 
-        // Constructor pentru injectarea dependențelor
-        public HotelService(IHotelRepository hotelRepository, IMapper mapper)
+        public HotelService(IHotelRepository hotelRepository, IMapper mapper, IServiciuEmail serviciuEmail)
         {
             _hotelRepository = hotelRepository;
             _mapper = mapper;
+            _serviciuEmail = serviciuEmail;
         }
 
         public async Task<Rezervare> GetRezervareByIdAsync(int rezervareId)
@@ -48,6 +49,43 @@ namespace BookingApp.Services
                 .ToList<object>();
 
             return rezervariEligibile;
+        }
+        public async Task TrimiteNotificarePlataIntegralaAsync(int rezervareId, string emailDestinatar)
+        {
+            var rezervare = await _hotelRepository.GetRezervareByIdAsync(rezervareId);
+            if (rezervare == null)
+            {
+                throw new Exception("Rezervarea nu a fost găsită.");
+            }
+
+            if (rezervare.SumaRamasaDePlata > 0)
+            {
+                throw new Exception("Plata nu este completă. Notificarea nu poate fi trimisă.");
+            }
+
+            var mesaj = $"Rezervarea cu ID-ul {rezervare.RezervareId} a fost plătită integral.";
+            await _serviciuEmail.TrimiteEmailAsync(emailDestinatar, "Plata completă confirmată", mesaj);
+        }
+
+        public async Task TrimiteNotificareRefundAsync(int rezervareId, decimal sumaRefundata, string emailDestinatar)
+        {
+            var rezervare = await _hotelRepository.GetRezervareByIdAsync(rezervareId);
+            if (rezervare == null)
+            {
+                throw new Exception("Rezervarea nu a fost găsită.");
+            }
+
+            var mesaj = $"Suma de {sumaRefundata} RON a fost returnată pentru rezervarea cu ID-ul {rezervare.RezervareId}.";
+            await _serviciuEmail.TrimiteEmailAsync(emailDestinatar, "Refund procesat", mesaj);
+        }
+
+        public async Task<decimal> ObțineSumaAchitatăAsync(int rezervareId)
+        {
+            // Obține rezervarea din repository
+            var rezervare = await _hotelRepository.GetRezervareByIdAsync(rezervareId);
+
+            // Returnează suma achitată sau 0 dacă rezervarea nu există
+            return rezervare?.SumaAchitata ?? 0;
         }
 
         public async Task ActualizeazaRezervareAsync(Rezervare rezervare)

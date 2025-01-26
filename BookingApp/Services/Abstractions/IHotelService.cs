@@ -22,5 +22,8 @@ namespace BookingApp.Services.Abstractions
         Task RefundPaymentAsync(string paymentIntentId, decimal? suma);
         Task<List<object>> GetRezervariEligibileRefund();
 
+        /// Obține suma achitată pentru o rezervare pe baza ID-ului rezervării.
+        Task<decimal> ObțineSumaAchitatăAsync(int rezervareId);
+
     }
 }

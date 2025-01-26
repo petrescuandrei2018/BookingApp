@@ -4,5 +4,4 @@
     {
         Task TrimiteEmailAsync(string laEmail, string subiect, string corp);
     }
-
 }

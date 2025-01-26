@@ -74,8 +74,10 @@ builder.Services.AddScoped<IHotelRepository, HotelRepository>();
 builder.Services.AddScoped<IHotelService, HotelService>();
 builder.Services.AddScoped<IRezervareServiciuActualizare, RezervareServiciuActualizare>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IServiciuPlata, ServiciuPlata>();
-builder.Services.AddScoped<IServiciuEmail, ServiciuEmail>();
+
+// Înregistrăm ambele servicii de email pentru utilizare directă în controller
+builder.Services.AddScoped<ServiciuEmailMock>();
+builder.Services.AddScoped<ServiciuEmailSmtp>();
 builder.Services.AddScoped<IServiciuStripe, ServiciuStripe>();
 builder.Services.AddHostedService<RezervareServiciuActualizare>();
 
