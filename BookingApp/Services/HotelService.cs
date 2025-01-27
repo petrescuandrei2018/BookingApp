@@ -16,40 +16,72 @@ namespace BookingApp.Services
         private readonly IMapper _mapper;
         private readonly IServiciuEmail _serviciuEmail;
 
-        public HotelService(IHotelRepository hotelRepository, IMapper mapper, IServiciuEmail serviciuEmail)
+        public HotelService(IHotelRepository hotelRepository, IMapper mapper, FabricaServiciuEmail fabricaServiciuEmail)
         {
             _hotelRepository = hotelRepository;
             _mapper = mapper;
-            _serviciuEmail = serviciuEmail;
+            _serviciuEmail = fabricaServiciuEmail.CreeazaServiciuEmail();
         }
+
 
         public async Task<Rezervare> GetRezervareByIdAsync(int rezervareId)
         {
             return await _hotelRepository.GetRezervareByIdAsync(rezervareId);
         }
 
-        public async Task<List<object>> GetRezervariEligibileRefund()
+        public async Task<List<object>> GetRezervariEligibilePlata()
         {
-            // Obține toate rezervările complete din repository
-            var rezervari = await _hotelRepository.GetAllRezervariCompletAsync();
+            var rezervari = await _hotelRepository.GetAllRezervariAsync();
 
-            // Filtrăm rezervările eligibile pentru refund și calculăm StarePlata
-            var rezervariEligibile = rezervari
-                .Where(r => r.SumaAchitata > 0) // Filtrăm doar rezervările plătite parțial sau integral
-                .Select(r => new
+            var rezultat = new List<object>();
+
+            foreach (var r in rezervari.Where(r => r.Stare == "Viitoare" && r.SumaRamasaDePlata > 0))
+            {
+                var pretCamera = await _hotelRepository.GetPretCameraByIdAsync(r.PretCameraId);
+                var numarNopti = (r.CheckOut - r.CheckIn).Days;
+                var sumaTotalaDePlata = pretCamera.PretNoapte * numarNopti;
+
+                rezultat.Add(new
                 {
                     r.RezervareId,
-                    r.SumaTotala,
+                    r.UserId,
+                    HotelName = r.PretCamera.TipCamera.Hotel.Name,
+                    CameraName = r.PretCamera.TipCamera.Name,
+                    r.CheckIn,
+                    r.CheckOut,
+                    PretNoapte = pretCamera.PretNoapte,
+                    SumaTotalaDePlata = sumaTotalaDePlata,
                     r.SumaAchitata,
-                    r.SumaRamasaDePlata,
-                    StarePlata = r.SumaRamasaDePlata == 0
-                        ? "Platita"
-                        : (r.SumaAchitata > 0 ? "In Progress" : "Neplatita")
-                })
-                .ToList<object>();
+                    r.SumaRamasaDePlata
+                });
+            }
 
-            return rezervariEligibile;
+            return rezultat;
         }
+
+        public async Task<List<RezervareRefundDto>> GetRezervariEligibileRefund()
+        {
+            var rezervari = await _hotelRepository.GetAllRezervariAsync();
+
+            var rezultat = rezervari
+                .Where(r => r.StarePlata == "Refundata" || r.SumaAchitata > 0)
+                .Select(r => new RezervareRefundDto
+                {
+                    RezervareId = r.RezervareId,
+                    UserId = r.UserId,
+                    PaymentIntentId = r.ClientSecret,
+                    SumaAchitata = r.SumaAchitata,
+                    SumaTotala = r.SumaTotala,
+                    SumaRamasaDePlata = r.SumaRamasaDePlata,
+                    CheckIn = r.CheckIn,
+                    CheckOut = r.CheckOut,
+                    StarePlata = r.StarePlata
+                })
+                .ToList();
+
+            return rezultat;
+        }
+
         public async Task TrimiteNotificarePlataIntegralaAsync(int rezervareId, string emailDestinatar)
         {
             var rezervare = await _hotelRepository.GetRezervareByIdAsync(rezervareId);

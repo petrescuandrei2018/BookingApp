@@ -19,8 +19,8 @@ namespace BookingApp.Controllers
         private readonly IAuthService _serviciuAutentificare;
         private readonly string _webhookSecret;
         private readonly IServiciuCacheRedis _cacheRedis;
-        private readonly IServiciuEmail _emailMock;
-        private readonly IServiciuEmail _emailReal;
+        private readonly FabricaServiciuEmail _fabricaServiciuEmail;
+
 
         public HotelController(
             IServiciuPlata serviciuPlata,
@@ -28,16 +28,14 @@ namespace BookingApp.Controllers
             IAuthService serviciuAutentificare,
             IOptions<StripeSettings> stripeSettings,
             IServiciuCacheRedis cacheRedis,
-            [FromServices] ServiciuEmailMock emailMock,
-            [FromServices] ServiciuEmailSmtp emailReal)
+            FabricaServiciuEmail fabricaServiciuEmail)
         {
             _serviciuPlata = serviciuPlata;
             _serviciuHotel = serviciuHotel;
             _serviciuAutentificare = serviciuAutentificare;
             _webhookSecret = stripeSettings.Value.WebhookSecret;
             _cacheRedis = cacheRedis;
-            _emailMock = emailMock;
-            _emailReal = emailReal;
+            _fabricaServiciuEmail = fabricaServiciuEmail;
         }        
 
         [HttpPost("register")]
@@ -274,53 +272,19 @@ namespace BookingApp.Controllers
         {
             try
             {
-                // Obținem toate rezervările din serviciul hotel
-                var rezervariEligibile = await _serviciuHotel.GetAllRezervariAsync();
-
-                // Procesăm fiecare rezervare pentru a calcula SumaRamasaDePlata
-                var rezultat = new List<object>();
-
-                foreach (var r in rezervariEligibile)
-                {
-                    var sumaAchitata = await _serviciuHotel.ObțineSumaAchitatăAsync(r.RezervareId);
-
-                    var sumaTotalaDePlata = r.Pret.HasValue
-                        ? r.Pret.Value * (r.CheckOut - r.CheckIn).Days
-                        : 0;
-
-                    var sumaRamasaDePlata = sumaTotalaDePlata - sumaAchitata;
-
-                    if (r.Stare == "Viitoare" && sumaRamasaDePlata > 0)
-                    {
-                        rezultat.Add(new
-                        {
-                            r.RezervareId,
-                            r.UserId,
-                            r.HotelName,
-                            r.NumeCamera,
-                            r.CheckIn,
-                            r.CheckOut,
-                            r.Pret,
-                            r.Stare,
-                            SumaTotalaDePlata = sumaTotalaDePlata,
-                            SumaAchitata = sumaAchitata,
-                            SumaRamasaDePlata = sumaRamasaDePlata
-                        });
-                    }
-                }
-
-                if (!rezultat.Any())
+                var rezervari = await _serviciuHotel.GetRezervariEligibilePlata();
+                if (!rezervari.Any())
                 {
                     return NotFound(new { Mesaj = "Nu există rezervări eligibile pentru plată." });
                 }
-
-                return Ok(rezultat);
+                return Ok(rezervari);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Mesaj = $"A apărut o eroare: {ex.Message}" });
+                return StatusCode(500, new { Mesaj = $"Eroare la obținerea rezervărilor eligibile pentru plată: {ex.Message}" });
             }
         }
+
 
 
         [HttpPost("Plata")]
@@ -333,47 +297,8 @@ namespace BookingApp.Controllers
 
             try
             {
-                // Obține rezervarea din DB
-                var rezervare = await _serviciuHotel.GetRezervareByIdAsync(rezervareId);
-                if (rezervare == null)
-                {
-                    return NotFound(new { Mesaj = "Rezervarea nu există." });
-                }
-
-                // Validare: Permitem plata doar dacă CheckIn este în viitor
-                if (rezervare.CheckIn <= DateTime.Now)
-                {
-                    rezervare.Stare = "Expirata";
-
-                    if (rezervare.SumaAchitata > 0)
-                    {
-                        // Refund automat pentru suma deja plătită
-                        await _serviciuPlata.ProceseazaRefundAsync(rezervare.ClientSecret, rezervare.SumaAchitata);
-                        rezervare.SumaAchitata = 0;
-                        rezervare.SumaRamasaDePlata = rezervare.SumaTotala;
-                        rezervare.StarePlata = "Refundata";
-                    }
-
-                    await _serviciuHotel.ActualizeazaRezervareAsync(rezervare);
-                    return BadRequest(new { Mesaj = "Rezervarea este expirată. Nu se mai pot face plăți." });
-                }
-
-                // Continuăm cu procesarea plății dacă este validă
                 var clientSecret = await _serviciuPlata.ProceseazaPlataAsync(rezervareId, suma, "RON", "Plată rezervare");
-                rezervare.SumaAchitata += suma;
-                rezervare.SumaRamasaDePlata -= suma;
-                rezervare.ClientSecret = clientSecret;
-
-                // Actualizăm starea plății
-                rezervare.StarePlata = rezervare.SumaRamasaDePlata == 0 ? "Platita" : "In Progress";
-                await _serviciuHotel.ActualizeazaRezervareAsync(rezervare);
-
-                return Ok(new
-                {
-                    Mesaj = rezervare.SumaRamasaDePlata > 0 ? "Plata procesată parțial." : "Plata procesată integral.",
-                    SumaRamasaDePlata = rezervare.SumaRamasaDePlata,
-                    ClientSecret = clientSecret
-                });
+                return Ok(new { Mesaj = "Plata procesată cu succes.", ClientSecret = clientSecret });
             }
             catch (Exception ex)
             {
@@ -387,10 +312,15 @@ namespace BookingApp.Controllers
         {
             try
             {
-                // Apelează serviciul pentru a obține rezervările eligibile
+                // Apelează metoda din serviciu pentru a obține rezervările eligibile pentru refund
                 var rezervariEligibile = await _serviciuHotel.GetRezervariEligibileRefund();
 
-                // Returnează rezultatul
+                // Verifică dacă există rezervări eligibile
+                if (!rezervariEligibile.Any())
+                {
+                    return NotFound(new { Mesaj = "Nu există rezervări eligibile pentru refund." });
+                }
+
                 return Ok(rezervariEligibile);
             }
             catch (Exception ex)
@@ -399,36 +329,30 @@ namespace BookingApp.Controllers
             }
         }
 
-        // Rută pentru trimiterea emailului folosind mock
-        [HttpPost("TrimiteEmailMock")]
-        public async Task<IActionResult> TrimiteEmailMock([FromQuery] string destinatar, [FromQuery] string subiect, [FromQuery] string mesaj)
-        {
-            try
-            {
-                await _emailMock.TrimiteEmailAsync(destinatar, subiect, mesaj);
-                return Ok(new { Mesaj = "Email (mock) trimis cu succes." });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { Mesaj = $"Eroare la trimiterea emailului (mock): {ex.Message}" });
-            }
-        }
+        /* [HttpPost("TrimiteEmail")]
+         public async Task<IActionResult> TrimiteEmail([FromQuery] string destinatar, [FromQuery] string subiect, [FromQuery] string mesaj)
+         {
+             try
+             {
+                 // Validare email
+                 if (!_fabricaServiciuEmail.EsteEmailValid(destinatar))
+                 {
+                     return BadRequest(new { Mesaj = "Adresa de email nu este validă." });
+                 }
 
-        // Rută pentru trimiterea emailului folosind real
-        [HttpPost("TrimiteEmailReal")]
-        public async Task<IActionResult> TrimiteEmailReal([FromQuery] string destinatar, [FromQuery] string subiect, [FromQuery] string mesaj)
-        {
-            try
-            {
-                await _emailReal.TrimiteEmailAsync(destinatar, subiect, mesaj);
-                return Ok(new { Mesaj = "Email (real) trimis cu succes." });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { Mesaj = $"Eroare la trimiterea emailului (real): {ex.Message}" });
-            }
-        }
-        [HttpPost("NotificarePlataIntegrala")]
+                 // Trimite email
+                 await _fabricaServiciuEmail.CreeazaServiciuEmail().TrimiteEmailAsync(destinatar, subiect, mesaj);
+
+                 return Ok(new { Mesaj = "Email trimis cu succes." });
+             }
+             catch (Exception ex)
+             {
+                 return StatusCode(500, new { Mesaj = $"Eroare la trimiterea emailului: {ex.Message}" });
+             }
+         }
+ */
+
+        /*[HttpPost("NotificarePlataIntegrala")]
         public async Task<IActionResult> NotificarePlataIntegrala([FromQuery] int rezervareId)
         {
             if (rezervareId <= 0)
@@ -470,8 +394,9 @@ namespace BookingApp.Controllers
                     rezervare.StarePlata
                 }, TimeSpan.FromMinutes(10));
 
-                // Trimitere notificare reală (folosind SMTP)
-                await _emailReal.TrimiteEmailAsync(
+                // Trimitere notificare reală
+                var serviciuEmail = _fabricaServiciuEmail.CreeazaServiciuEmail();
+                await serviciuEmail.TrimiteEmailAsync(
                     "emailul.utilizatorului@exemplu.com",
                     "Plata completă confirmată",
                     $"Rezervarea cu ID-ul {rezervare.RezervareId} a fost plătită integral."
@@ -486,66 +411,25 @@ namespace BookingApp.Controllers
             {
                 return StatusCode(500, new { Mesaj = $"Eroare la procesarea notificării: {ex.Message}" });
             }
-        }
-
+        }*/
         [HttpPost("Refund")]
-        public async Task<IActionResult> ProcesareRefundByRezervareId([FromQuery] int rezervareId, [FromQuery] decimal sumaRefund)
+        public async Task<IActionResult> ProcesareRefund([FromQuery] string paymentIntentId, [FromQuery] decimal suma)
         {
-            if (rezervareId <= 0)
+            if (string.IsNullOrWhiteSpace(paymentIntentId) || suma <= 0)
             {
-                return BadRequest(new { Mesaj = "ID-ul rezervării este necesar." });
+                return BadRequest(new { Mesaj = "ID-ul paymentIntent și suma trebuie să fie valide." });
             }
 
             try
             {
-                // 1. Obține rezervarea din baza de date
-                var rezervare = await _serviciuHotel.GetRezervareByIdAsync(rezervareId);
-                if (rezervare == null)
-                {
-                    return NotFound(new { Mesaj = "Rezervarea nu există." });
-                }
-
-                // 2. Verifică dacă suma refund-ului este validă
-                if (sumaRefund <= 0 || sumaRefund > rezervare.SumaAchitata)
-                {
-                    return BadRequest(new { Mesaj = "Suma refund-ului este invalidă. Verificați suma achitată." });
-                }
-
-                // 3. Procesează refund-ul în Stripe
-                var statusRefund = await _serviciuPlata.ProceseazaRefundAsync(rezervare.ClientSecret, sumaRefund);
-
-                // 4. Actualizează datele rezervării în baza de date
-                rezervare.SumaAchitata -= sumaRefund;
-                rezervare.SumaRamasaDePlata += sumaRefund;
-
-                // Actualizează starea plății
-                if (rezervare.SumaAchitata == 0)
-                {
-                    rezervare.StarePlata = "Refundata";
-                }
-                else if (rezervare.SumaAchitata > 0 && rezervare.SumaRamasaDePlata > 0)
-                {
-                    rezervare.StarePlata = "In Progress";
-                }
-
-                await _serviciuHotel.ActualizeazaRezervareAsync(rezervare);
-
-                // 5. Returnează rezultatul refund-ului
-                return Ok(new
-                {
-                    Mesaj = "Refund procesat cu succes.",
-                    Status = statusRefund,
-                    SumaAchitataNoua = rezervare.SumaAchitata,
-                    SumaRamasaDePlataNoua = rezervare.SumaRamasaDePlata,
-                    StarePlataNoua = rezervare.StarePlata
-                });
+                var statusRefund = await _serviciuPlata.ProceseazaRefundAsync(paymentIntentId, suma);
+                return Ok(new { Mesaj = "Refund procesat cu succes.", Status = statusRefund });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { Mesaj = $"Eroare la procesarea refund-ului: {ex.Message}" });
             }
         }
-
     }
 }
 

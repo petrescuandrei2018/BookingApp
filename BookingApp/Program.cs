@@ -20,6 +20,10 @@ using Microsoft.Extensions.Caching.StackExchangeRedis;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Afișează mediul curent pentru debug
+Console.WriteLine($"Mediul curent: {builder.Environment.EnvironmentName}");
+
+
 // Validare StripeSettings la startup
 var stripeSection = builder.Configuration.GetSection("Stripe");
 if (string.IsNullOrEmpty(stripeSection["SecretKey"]) || string.IsNullOrEmpty(stripeSection["PublishableKey"]))
@@ -79,7 +83,26 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ServiciuEmailMock>();
 builder.Services.AddScoped<ServiciuEmailSmtp>();
 builder.Services.AddScoped<IServiciuStripe, ServiciuStripe>();
+builder.Services.AddScoped<IServiciuPlata, ServiciuPlata>();
 builder.Services.AddHostedService<RezervareServiciuActualizare>();
+
+builder.Services.AddScoped<IServiciuEmail>(furnizorServicii =>
+{
+    var configuratie = furnizorServicii.GetRequiredService<IConfiguration>();
+    var folosesteMock = configuratie.GetValue<bool>("FolosesteEmailMock");
+
+    if (folosesteMock)
+    {
+        return furnizorServicii.GetRequiredService<ServiciuEmailMock>();
+    }
+    else
+    {
+        return furnizorServicii.GetRequiredService<ServiciuEmailSmtp>();
+    }
+});
+
+builder.Services.AddScoped<FabricaServiciuEmail>();
+
 
 // Configurare pentru autentificare și generarea token-urilor JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();

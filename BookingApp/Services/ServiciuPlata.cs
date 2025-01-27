@@ -1,8 +1,10 @@
-﻿using Stripe;
+﻿using System.Net;
+using System.Net.Mail;
 using BookingApp.Data;
 using BookingApp.Models;
-using Microsoft.EntityFrameworkCore;
 using BookingApp.Services.Abstractions;
+using Microsoft.EntityFrameworkCore;
+using Stripe;
 
 namespace BookingApp.Services
 {
@@ -23,7 +25,10 @@ namespace BookingApp.Services
         {
             try
             {
-                var rezervare = await _contextBd.Rezervari.FirstOrDefaultAsync(r => r.RezervareId == rezervareId);
+                var rezervare = await _contextBd.Rezervari
+                    .Include(r => r.User) // Include utilizatorul asociat
+                    .FirstOrDefaultAsync(r => r.RezervareId == rezervareId);
+
                 if (rezervare == null)
                 {
                     throw new Exception($"Rezervarea cu ID-ul {rezervareId} nu există.");
@@ -31,7 +36,13 @@ namespace BookingApp.Services
 
                 if (rezervare.StarePlata == "Platita")
                 {
-                    throw new Exception($"Rezervarea cu ID-ul {rezervareId} a fost deja plătită.");
+                    throw new Exception($"Rezervarea cu ID-ul {rezervareId} a fost deja plătită integral.");
+                }
+
+                // Validare: suma nu trebuie să depășească suma rămasă de plată
+                if (suma > rezervare.SumaRamasaDePlata)
+                {
+                    throw new Exception($"Suma trimisă ({suma} RON) depășește suma rămasă de plată ({rezervare.SumaRamasaDePlata} RON) pentru rezervarea cu ID-ul {rezervareId}.");
                 }
 
                 var paymentIntentService = new PaymentIntentService(_stripeClient);
@@ -41,14 +52,35 @@ namespace BookingApp.Services
                     Currency = moneda,
                     Description = descriere,
                     Metadata = new Dictionary<string, string>
-                    {
-                        { "RezervareId", rezervareId.ToString() }
-                    }
+            {
+                { "RezervareId", rezervareId.ToString() }
+            }
                 });
 
                 rezervare.ClientSecret = paymentIntent.ClientSecret;
-                rezervare.StarePlata = "In Progress";
+                rezervare.SumaAchitata += suma;
+                rezervare.SumaRamasaDePlata -= suma;
+                rezervare.StarePlata = rezervare.SumaRamasaDePlata == 0 ? "Platita" : "In Progress";
+
                 await _contextBd.SaveChangesAsync();
+
+                // Trimite email de notificare
+                if (rezervare.SumaRamasaDePlata == 0)
+                {
+                    await _serviciuEmail.TrimiteEmailAsync(
+                        rezervare.User.Email,
+                        "Plată integrală confirmată",
+                        $"Rezervarea cu ID-ul {rezervare.RezervareId} a fost plătită integral."
+                    );
+                }
+                else
+                {
+                    await _serviciuEmail.TrimiteEmailAsync(
+                        rezervare.User.Email,
+                        "Plată parțială procesată",
+                        $"S-a achitat suma {suma} RON pentru rezervarea cu ID-ul {rezervare.RezervareId}. Mai aveți de plătit suma {rezervare.SumaRamasaDePlata} RON."
+                    );
+                }
 
                 return paymentIntent.ClientSecret;
             }
@@ -63,6 +95,20 @@ namespace BookingApp.Services
         {
             try
             {
+                var rezervare = await _contextBd.Rezervari
+                    .Include(r => r.User) // Asigură-te că entitatea User este încărcată
+                    .FirstOrDefaultAsync(r => r.ClientSecret == paymentIntentId);
+
+                if (rezervare == null)
+                {
+                    throw new Exception("Rezervarea nu a fost găsită.");
+                }
+
+                if (rezervare.User == null)
+                {
+                    throw new Exception($"Rezervarea cu ID-ul {rezervare.RezervareId} nu are un utilizator asociat.");
+                }
+
                 var refundService = new RefundService(_stripeClient);
                 var options = new RefundCreateOptions
                 {
@@ -71,6 +117,31 @@ namespace BookingApp.Services
                 };
 
                 var refund = await refundService.CreateAsync(options);
+
+                rezervare.SumaAchitata -= suma ?? rezervare.SumaAchitata;
+                rezervare.SumaRamasaDePlata += suma ?? rezervare.SumaAchitata;
+                rezervare.StarePlata = rezervare.SumaAchitata == 0 ? "Refundata" : "In Progress";
+
+                await _contextBd.SaveChangesAsync();
+
+                // Trimite email de notificare
+                if (rezervare.SumaAchitata == 0)
+                {
+                    await _serviciuEmail.TrimiteEmailAsync(
+                        rezervare.User.Email,
+                        "Refund complet",
+                        $"S-a efectuat un refund complet pentru rezervarea cu ID-ul {rezervare.RezervareId}."
+                    );
+                }
+                else
+                {
+                    await _serviciuEmail.TrimiteEmailAsync(
+                        rezervare.User.Email,
+                        "Refund parțial procesat",
+                        $"S-a efectuat un refund de {suma} RON pentru rezervarea cu ID-ul {rezervare.RezervareId}. Suma rămasă achitată este {rezervare.SumaAchitata} RON."
+                    );
+                }
+
                 return refund.Status;
             }
             catch (Exception ex)
@@ -78,11 +149,6 @@ namespace BookingApp.Services
                 Console.WriteLine($"[ProceseazaRefundAsync] Eroare: {ex.Message}");
                 throw new Exception($"Eroare la procesarea refund-ului: {ex.Message}");
             }
-        }
-
-        public async Task TrimiteEmailConfirmare(string email, string mesaj)
-        {
-            await _serviciuEmail.TrimiteEmailAsync(email, "Confirmare plată", mesaj);
         }
     }
 }

@@ -33,6 +33,10 @@ namespace BookingApp.Repository
             return await _database.Rezervari.ToListAsync();
         }
 
+        public async Task<PretCamera> GetPretCameraByIdAsync(int pretCameraId)
+        {
+            return await _database.PretCamere.FirstOrDefaultAsync(pc => pc.PretCameraId == pretCameraId);
+        }
 
         public async Task<List<Rezervare>> GetAllRezervariAsync()
         {

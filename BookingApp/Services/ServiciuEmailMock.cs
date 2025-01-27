@@ -1,4 +1,5 @@
 ﻿using BookingApp.Services.Abstractions;
+using System.Net.Mail;
 
 namespace BookingApp.Services
 {
