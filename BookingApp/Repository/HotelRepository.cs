@@ -40,8 +40,11 @@ namespace BookingApp.Repository
 
         public async Task<List<Rezervare>> GetAllRezervariAsync()
         {
-            var rezervari =  await _database.Rezervari.ToListAsync();
-            return rezervari;
+            return await _database.Rezervari
+                .Include(r => r.PretCamera) // Include relația cu PretCamera
+                .ThenInclude(pc => pc.TipCamera) // Include relația cu TipCamera
+                .ThenInclude(tc => tc.Hotel) // Include relația cu Hotel
+                .ToListAsync();
         }
 
         public async Task<List<HotelTipCamera>> GetAllHotelsTipCamera()
@@ -254,6 +257,14 @@ namespace BookingApp.Repository
                 .FirstOrDefaultAsync();
 
             return tipCamera?.NrCamereDisponibile ?? 0;
+        }
+
+        public async Task<List<Hotel>> ObtineHoteluriPeLocatie(double latitudine, double longitudine, double razaKm)
+        {
+            var hoteluri = await _database.Hotels.ToListAsync();
+            return hoteluri
+                .Where(h => UtilitatiGeografice.CalculeazaDistanta(latitudine, longitudine, h.Latitudine, h.Longitudine) <= razaKm)
+                .ToList();
         }
 
     }

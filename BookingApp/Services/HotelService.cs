@@ -6,6 +6,9 @@ using BookingApp.Services.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Stripe;
 using System.Linq;
+using BookingApp.Helpers;
+using Microsoft.AspNetCore.Mvc;
+
 
 namespace BookingApp.Services
 {
@@ -31,25 +34,25 @@ namespace BookingApp.Services
 
         public async Task<List<object>> GetRezervariEligibilePlata()
         {
-            var rezervari = await _hotelRepository.GetAllRezervariAsync();
+            var rezervari = await _hotelRepository.GetAllRezervariAsync(); // Relațiile sunt deja incluse
 
             var rezultat = new List<object>();
 
             foreach (var r in rezervari.Where(r => r.Stare == "Viitoare" && r.SumaRamasaDePlata > 0))
             {
-                var pretCamera = await _hotelRepository.GetPretCameraByIdAsync(r.PretCameraId);
+                var pretCamera = r.PretCamera;
                 var numarNopti = (r.CheckOut - r.CheckIn).Days;
-                var sumaTotalaDePlata = pretCamera.PretNoapte * numarNopti;
+                var sumaTotalaDePlata = pretCamera?.PretNoapte * numarNopti ?? 0;
 
                 rezultat.Add(new
                 {
                     r.RezervareId,
                     r.UserId,
-                    HotelName = r.PretCamera.TipCamera.Hotel.Name,
-                    CameraName = r.PretCamera.TipCamera.Name,
+                    HotelName = r.PretCamera?.TipCamera?.Hotel?.Name ?? "Hotel necunoscut",
+                    CameraName = r.PretCamera?.TipCamera?.Name ?? "Cameră necunoscută",
                     r.CheckIn,
                     r.CheckOut,
-                    PretNoapte = pretCamera.PretNoapte,
+                    PretNoapte = pretCamera?.PretNoapte ?? 0,
                     SumaTotalaDePlata = sumaTotalaDePlata,
                     r.SumaAchitata,
                     r.SumaRamasaDePlata
@@ -57,6 +60,27 @@ namespace BookingApp.Services
             }
 
             return rezultat;
+        }
+
+        public async Task<List<HotelCuDistantaDto>> ObtineHoteluriPeLocatie(double latitudine, double longitudine, double razaKm)
+        {
+            var hoteluri = await _hotelRepository.GetAllHotels();
+
+            return hoteluri
+                .Select(h => new
+                {
+                    Hotel = h,
+                    Distanta = UtilitatiGeografice.CalculeazaDistanta(latitudine, longitudine, h.Latitudine, h.Longitudine)
+                })
+                .Where(x => x.Distanta <= razaKm)
+                .Select(x => new HotelCuDistantaDto
+                {
+                    NumeHotel = x.Hotel.Name,
+                    Adresa = x.Hotel.Address,
+                    DistantaKm = x.Distanta
+                })
+                .OrderBy(x => x.DistantaKm)
+                .ToList();
         }
 
         public async Task<List<RezervareRefundDto>> GetRezervariEligibileRefund()
@@ -435,5 +459,177 @@ namespace BookingApp.Services
             rezervare.StarePlata = "Refundata";
             await _hotelRepository.ActualizeazaRezervareAsync(rezervare);
         }
+
+        public async Task<List<HotelCuDistantaDto>> ObtineHoteluriPeOras(string oras, double razaKm)
+        {
+            var coordonateOras = await ObțineCoordonateOras(oras);
+            if (coordonateOras == null)
+            {
+                throw new Exception($"Orașul {oras} nu a fost găsit.");
+            }
+
+            var hoteluri = await _hotelRepository.GetAllHotels();
+
+            return hoteluri
+                .Select(hotel => new
+                {
+                    Hotel = hotel,
+                    Distanta = UtilitatiGeografice.CalculeazaDistanta(
+                        coordonateOras.Latitudine,
+                        coordonateOras.Longitudine,
+                        hotel.Latitudine,
+                        hotel.Longitudine)
+                })
+                .Where(x => x.Distanta <= razaKm)
+                .Select(x => new HotelCuDistantaDto
+                {
+                    NumeHotel = x.Hotel.Name,
+                    Adresa = x.Hotel.Address,
+                    DistantaKm = x.Distanta,
+                    Latitudine = x.Hotel.Latitudine,
+                    Longitudine = x.Hotel.Longitudine
+                })
+                .OrderBy(x => x.DistantaKm)
+                .ToList();
+        }
+
+        public async Task<CoordonateOrasDto?> ObțineCoordonateOras(string oras)
+        {
+            // Exemplu: apel către un API extern (e.g., OpenCageData, Google Maps)
+            // Sau caută în baza ta de date, dacă ai salvat coordonatele orașelor
+            var coordonateOrase = new Dictionary<string, (double Latitudine, double Longitudine)>
+    {
+        { "Bucuresti", (44.4268, 26.1025) },
+        { "Brasov", (45.657974, 25.601198) },
+        { "Cluj-Napoca", (46.7712, 23.6236) },
+        { "Constanta", (44.1598, 28.6348) }
+    };
+
+            if (coordonateOrase.TryGetValue(oras, out var coordonate))
+            {
+                return new CoordonateOrasDto
+                {
+                    Latitudine = coordonate.Latitudine,
+                    Longitudine = coordonate.Longitudine
+                };
+            }
+
+            return null; // Orașul nu a fost găsit
+        }
+
+        public async Task<string> GenereazaHartaAsync(string oras, double razaKm)
+        {
+            // Obținem coordonatele orașului
+            var coordonateOras = await ObțineCoordonateOras(oras);
+            if (coordonateOras == null)
+            {
+                throw new Exception($"Orașul {oras} nu a fost găsit.");
+            }
+
+            // Obținem hotelurile din baza de date
+            var hoteluri = await ObtineHoteluriPeOras(oras, razaKm);
+
+            // Generăm conținutul HTML
+            var htmlContent = @$"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Harta Hoteluri</title>
+    <meta charset='utf-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <link rel='stylesheet' href='https://unpkg.com/leaflet@1.7.1/dist/leaflet.css' />
+    <script src='https://unpkg.com/leaflet@1.7.1/dist/leaflet.js'></script>
+    <style>
+        #map {{
+            height: 600px;
+            width: 100%;
+        }}
+    </style>
+</head>
+<body>
+    <h1>Harta Hotelurilor în {oras}</h1>
+    <div id='map'></div>
+    <script>
+        var map = L.map('map').setView([{coordonateOras.Latitudine}, {coordonateOras.Longitudine}], 12);
+        L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+            maxZoom: 19,
+            subdomains: ['a', 'b', 'c'],
+            attribution: '© OpenStreetMap contributors'
+        }}).addTo(map);
+
+        var hoteluri = {System.Text.Json.JsonSerializer.Serialize(hoteluri)};
+        hoteluri.forEach(function(hotel) {{
+            L.marker([hotel.latitudine, hotel.longitudine])
+             .addTo(map)
+             .bindPopup('<b>' + hotel.numeHotel + '</b><br>Distanta: ' + hotel.distantaKm.toFixed(2) + ' km');
+        }});
+    </script>
+</body>
+</html>";
+
+            // Salvăm fișierul HTML într-un director temporar
+            var fileName = $"HartaHoteluri_{oras}.html";
+            var filePath = Path.Combine(Path.GetTempPath(), fileName);
+            await System.IO.File.WriteAllTextAsync(filePath, htmlContent);
+
+            // Returnăm URL-ul relativ sau calea către fișier
+            var baseUrl = "http://localhost:5000/Harta"; // Înlocuiește cu URL-ul aplicației tale
+            var url = $"{baseUrl}/{fileName}";
+            return url;
+        }
+
+        public async Task<string> GenereazaHartaHtmlAsync(string oras, double razaKm)
+        {
+            // Obținem coordonatele orașului
+            var coordonateOras = await ObțineCoordonateOras(oras);
+            if (coordonateOras == null)
+            {
+                throw new Exception($"Orașul {oras} nu a fost găsit.");
+            }
+
+            // Obținem hotelurile din baza de date
+            var hoteluri = await ObtineHoteluriPeOras(oras, razaKm);
+
+            // Generăm conținutul HTML
+            var htmlContent = @$"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Harta Hoteluri</title>
+    <meta charset='utf-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <link rel='stylesheet' href='https://unpkg.com/leaflet@1.7.1/dist/leaflet.css' />
+    <script src='https://unpkg.com/leaflet@1.7.1/dist/leaflet.js'></script>
+    <style>
+        #map {{
+            height: 600px;
+            width: 100%;
+        }}
+    </style>
+</head>
+<body>
+    <h1>Harta Hotelurilor în {oras}</h1>
+    <div id='map'></div>
+    <script>
+        var map = L.map('map').setView([{coordonateOras.Latitudine}, {coordonateOras.Longitudine}], 12);
+        L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+            maxZoom: 19,
+            subdomains: ['a', 'b', 'c'],
+            attribution: '© OpenStreetMap contributors'
+        }}).addTo(map);
+
+        var hoteluri = {System.Text.Json.JsonSerializer.Serialize(hoteluri)};
+        hoteluri.forEach(function(hotel) {{
+            L.marker([hotel.latitudine, hotel.longitudine])
+             .addTo(map)
+             .bindPopup('<b>' + hotel.numeHotel + '</b><br>Distanta: ' + hotel.distantaKm.toFixed(2) + ' km');
+        }});
+    </script>
+</body>
+</html>";
+
+            return htmlContent;
+        }
+
     }
 }

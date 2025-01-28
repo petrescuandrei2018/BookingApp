@@ -4,6 +4,7 @@ using BookingApp.Services.Abstractions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using BookingApp.Models;
+using BookingApp.Helpers;
 using Stripe;
 using Microsoft.Extensions.Options;
 using BookingApp.Services;
@@ -285,6 +286,88 @@ namespace BookingApp.Controllers
             }
         }
 
+        [HttpGet("ObtineHoteluriPeOras")]
+        public async Task<IActionResult> ObtineHoteluriPeOras([FromQuery] string oras, [FromQuery] double razaKm = 10)
+        {
+            if (string.IsNullOrEmpty(oras))
+            {
+                return BadRequest(new { Mesaj = "Numele orașului este obligatoriu." });
+            }
+
+            try
+            {
+                var hoteluri = await _serviciuHotel.ObtineHoteluriPeOras(oras, razaKm);
+                if (!hoteluri.Any())
+                {
+                    return NotFound(new { Mesaj = $"Nu s-au găsit hoteluri în raza de {razaKm} km pentru orașul {oras}." });
+                }
+
+                return Ok(hoteluri);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Mesaj = $"A apărut o eroare: {ex.Message}" });
+            }
+        }
+
+        [HttpGet("GenereazaHarta")]
+        public async Task<IActionResult> GenereazaHarta([FromQuery] string oras, [FromQuery] double razaKm)
+        {
+            var coordonateOras = await _serviciuHotel.ObțineCoordonateOras(oras);
+            if (coordonateOras == null)
+            {
+                return NotFound($"Orașul {oras} nu a fost găsit.");
+            }
+
+            var hoteluri = await _serviciuHotel.ObtineHoteluriPeOras(oras, razaKm);
+
+            // Generăm conținutul HTML
+            var htmlContent = @$"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Harta Hoteluri</title>
+    <meta charset='utf-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <link rel='stylesheet' href='https://unpkg.com/leaflet@1.7.1/dist/leaflet.css' />
+    <script src='https://unpkg.com/leaflet@1.7.1/dist/leaflet.js'></script>
+    <style>
+        #map {{
+            height: 600px;
+            width: 100%;
+        }}
+    </style>
+</head>
+<body>
+    <h1>Harta Hotelurilor în {oras}</h1>
+    <div id='map'></div>
+    <script>
+        var map = L.map('map').setView([{coordonateOras.Latitudine}, {coordonateOras.Longitudine}], 12);
+        L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+            maxZoom: 19,
+            subdomains: ['a', 'b', 'c'],
+            attribution: '© OpenStreetMap contributors'
+        }}).addTo(map);
+
+        var hoteluri = {System.Text.Json.JsonSerializer.Serialize(hoteluri)};
+        hoteluri.forEach(function(hotel) {{
+            L.marker([hotel.latitudine, hotel.longitudine])
+             .addTo(map)
+             .bindPopup('<b>' + hotel.numeHotel + '</b><br>Distanta: ' + hotel.distantaKm.toFixed(2) + ' km');
+        }});
+    </script>
+</body>
+</html>";
+
+            // Nume și cale temporară pentru fișierul HTML
+            var fileName = $"HartaHoteluri_{oras}.html";
+            var filePath = Path.Combine(Path.GetTempPath(), fileName);
+            await System.IO.File.WriteAllTextAsync(filePath, htmlContent);
+
+            // Returnăm fișierul ca atașament descărcabil
+            var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+            return File(fileBytes, "text/html", fileName);
+        }
 
 
         [HttpPost("Plata")]

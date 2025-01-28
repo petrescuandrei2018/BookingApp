@@ -23,5 +23,13 @@ namespace BookingApp.Services.Abstractions
         Task<List<RezervareRefundDto>> GetRezervariEligibileRefund();
         Task<List<object>> GetRezervariEligibilePlata(); // Nouă metodă pentru rezervările eligibile de plată
         Task<decimal> ObțineSumaAchitatăAsync(int rezervareId);
+        Task<List<HotelCuDistantaDto>> ObtineHoteluriPeLocatie(double latitudine, double longitudine, double razaKm);
+        Task<List<HotelCuDistantaDto>> ObtineHoteluriPeOras(string oras, double razaKm);
+        Task<string> GenereazaHartaAsync(string oras, double razaKm);
+
+        Task<string> GenereazaHartaHtmlAsync(string oras, double razaKm);
+
+        Task<CoordonateOrasDto?> ObțineCoordonateOras(string oras);
+
     }
 }

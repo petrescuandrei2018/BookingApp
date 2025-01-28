@@ -17,6 +17,7 @@ using Microsoft.OpenApi.Models;
 using Stripe;
 using System.Globalization;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -186,6 +187,8 @@ Console.WriteLine("Consola afiseaza");
 // Activăm redirecționarea la HTTPS
 app.UseHttpsRedirection();
 
+
+
 // Middleware pentru logare a cererilor HTTP
 app.Use(async (context, next) =>
 {
@@ -195,6 +198,14 @@ app.Use(async (context, next) =>
 });
 
 app.UseRouting();
+
+// Adaugăm fișierele statice pentru fișierele HTML temporare
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(Path.GetTempPath()),
+    RequestPath = "/Harta"
+});
+
 // Configurăm pipeline-ul pentru autentificare și autorizare
 app.UseAuthentication();
 app.UseAuthorization();

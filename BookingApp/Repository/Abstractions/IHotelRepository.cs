@@ -34,6 +34,7 @@ namespace BookingApp.Repository.Abstractions
 
         Task<PretCamera> GetPretCameraByIdAsync(int pretCameraId);
 
+        Task<List<Hotel>> ObtineHoteluriPeLocatie(double latitudine, double longitudine, double razaKm);
 
     }
 
