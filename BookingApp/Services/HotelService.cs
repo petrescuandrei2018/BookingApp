@@ -26,6 +26,19 @@ namespace BookingApp.Services
             _serviciuEmail = fabricaServiciuEmail.CreeazaServiciuEmail();
         }
 
+        public async Task<List<HotelCoordonateDto>> GetAllHotelsCoordonate()
+        {
+            var hotels = await _hotelRepository.GetAllHotels(); // Obține hotelurile din DB
+
+            return hotels.Select(h => new HotelCoordonateDto
+            {
+                NumeHotel = h.Name,
+                Adresa = h.Address,
+                Latitudine = h.Latitudine,
+                Longitudine = h.Longitudine
+            }).ToList();
+        }
+
 
         public async Task<Rezervare> GetRezervareByIdAsync(int rezervareId)
         {
@@ -462,25 +475,31 @@ namespace BookingApp.Services
 
         public async Task<List<HotelCuDistantaDto>> ObtineHoteluriPeOras(string oras, double razaKm)
         {
+            // ✅ 1. Obținem coordonatele orașului
             var coordonateOras = await ObțineCoordonateOras(oras);
+
+            // ✅ 2. Dacă orașul nu este găsit, folosim coordonate default și returnăm lista goală
             if (coordonateOras == null)
             {
-                throw new Exception($"Orașul {oras} nu a fost găsit.");
+                Console.WriteLine($"⚠ Orașul {oras} nu a fost găsit în baza de date. Se returnează listă goală.");
+                return new List<HotelCuDistantaDto>(); // Fără eroare, dar fără rezultate
             }
 
+            // ✅ 3. Obținem toate hotelurile
             var hoteluri = await _hotelRepository.GetAllHotels();
 
-            return hoteluri
-                .Select(hotel => new
+            // ✅ 4. Calculăm distanța fiecărui hotel față de oraș
+            var hoteluriFiltrate = hoteluri
+                .Select(h => new
                 {
-                    Hotel = hotel,
+                    Hotel = h,
                     Distanta = UtilitatiGeografice.CalculeazaDistanta(
                         coordonateOras.Latitudine,
                         coordonateOras.Longitudine,
-                        hotel.Latitudine,
-                        hotel.Longitudine)
+                        h.Latitudine,
+                        h.Longitudine)
                 })
-                .Where(x => x.Distanta <= razaKm)
+                .Where(x => x.Distanta <= razaKm) // ✅ Filtrăm doar hotelurile în raza specificată
                 .Select(x => new HotelCuDistantaDto
                 {
                     NumeHotel = x.Hotel.Name,
@@ -491,6 +510,8 @@ namespace BookingApp.Services
                 })
                 .OrderBy(x => x.DistantaKm)
                 .ToList();
+
+            return hoteluriFiltrate;
         }
 
         public async Task<CoordonateOrasDto?> ObțineCoordonateOras(string oras)

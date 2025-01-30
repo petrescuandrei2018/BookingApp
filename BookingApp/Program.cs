@@ -21,91 +21,98 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Afișează mediul curent pentru debug
+// ✅ Debugging Environment
 Console.WriteLine($"Mediul curent: {builder.Environment.EnvironmentName}");
 
-
-// Validare StripeSettings la startup
+// ✅ Validare StripeSettings
 var stripeSection = builder.Configuration.GetSection("Stripe");
 if (string.IsNullOrEmpty(stripeSection["SecretKey"]) || string.IsNullOrEmpty(stripeSection["PublishableKey"]))
 {
     throw new InvalidOperationException("Configurarea Stripe nu este completă. Verifică SecretKey și PublishableKey în appsettings.json.");
 }
-
-// Configurăm Stripe API Key
 StripeConfiguration.ApiKey = stripeSection["SecretKey"];
 
-// Configurează furnizorii de logare
+// ✅ Configurare logare
 builder.Logging.ClearProviders();
-builder.Logging.AddConsole(options =>
-{
-    options.LogToStandardErrorThreshold = LogLevel.Trace;
-});
+builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Trace);
 
-var logger = builder.Logging.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
-logger.LogInformation("Test de logare din Program.cs");
-
+// ✅ Configurare cultură default (ex. pentru formatarea numerelor, datelor)
 var cultureInfo = new CultureInfo("en-US");
 CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
 CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 
-// Înregistrăm configurațiile JWT
+// ✅ Înregistrăm configurațiile JWT
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
-// Configurăm serviciul pentru baza de date folosind SQL Server
+// ✅ Configurăm baza de date (SQL Server)
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-    options.LogTo(Console.WriteLine, LogLevel.Information); // Log detaliat
-
+    options.LogTo(Console.WriteLine, LogLevel.Information);
 });
 
+// ✅ Înregistrăm AutoMapper
 IMapper mapper = MappingConfig.RegisterMaps().CreateMapper();
 builder.Services.AddSingleton(mapper);
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
-// Configurăm Redis ca mediu de stocare distribuit
+// ✅ Configurăm Redis
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration.GetConnectionString("Redis");
 });
 
-// Adăugăm serviciul RedisCache
+// ✅ Înregistrăm serviciile în ordinea corectă
 builder.Services.AddScoped<IServiciuCacheRedis, ServiciuCacheRedis>();
-
-// Adăugăm serviciile proiectului în containerul de servicii
 builder.Services.AddScoped<IHotelRepository, HotelRepository>();
 builder.Services.AddScoped<IHotelService, HotelService>();
 builder.Services.AddScoped<IRezervareServiciuActualizare, RezervareServiciuActualizare>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// Înregistrăm ambele servicii de email pentru utilizare directă în controller
-builder.Services.AddScoped<ServiciuEmailMock>();
-builder.Services.AddScoped<ServiciuEmailSmtp>();
+// ✅ Adăugăm serviciul pentru căutarea coordonatelor online
+builder.Services.AddHttpClient<IServiciuCoordonateOnline, ServiciuCoordonateOnline>(client =>
+{
+    var config = builder.Configuration;
+    var apiKey = config["OpenWeather:ApiKey"];
+
+    if (string.IsNullOrEmpty(apiKey))
+    {
+        throw new InvalidOperationException("API Key pentru OpenWeather lipsește din configurație.");
+    }
+
+    client.DefaultRequestHeaders.Add("User-Agent", "BookingApp"); // OpenWeather cere User-Agent valid
+});
+builder.Services.AddScoped<IServiciuCoordonateOnline, ServiciuCoordonateOnline>();
+
+// ✅ Înregistrăm serviciul local de coordonate
+builder.Services.AddScoped<IServiciuCoordonate, ServiciuCoordonate>();
+
+// ✅ Servicii legate de hartă și filtrare hoteluri
+builder.Services.AddScoped<IServiciuFiltrareHoteluri, ServiciuFiltrareHoteluri>();
+builder.Services.AddScoped<IServiciuGenerareHtml, ServiciuGenerareHtml>();
+builder.Services.AddScoped<IServiciuSalvareHarta, ServiciuSalvareHarta>();
+builder.Services.AddScoped<IServiciuHarta, ServiciuHarta>();
+
+// ✅ Servicii pentru plăți și Stripe
 builder.Services.AddScoped<IServiciuStripe, ServiciuStripe>();
 builder.Services.AddScoped<IServiciuPlata, ServiciuPlata>();
 builder.Services.AddHostedService<RezervareServiciuActualizare>();
 
+// ✅ Servicii pentru e-mail
+builder.Services.AddScoped<ServiciuEmailMock>();
+builder.Services.AddScoped<ServiciuEmailSmtp>();
 builder.Services.AddScoped<IServiciuEmail>(furnizorServicii =>
 {
     var configuratie = furnizorServicii.GetRequiredService<IConfiguration>();
     var folosesteMock = configuratie.GetValue<bool>("FolosesteEmailMock");
 
-    if (folosesteMock)
-    {
-        return furnizorServicii.GetRequiredService<ServiciuEmailMock>();
-    }
-    else
-    {
-        return furnizorServicii.GetRequiredService<ServiciuEmailSmtp>();
-    }
+    return folosesteMock ? furnizorServicii.GetRequiredService<ServiciuEmailMock>()
+                         : furnizorServicii.GetRequiredService<ServiciuEmailSmtp>();
 });
-
 builder.Services.AddScoped<FabricaServiciuEmail>();
 
-
-// Configurare pentru autentificare și generarea token-urilor JWT
+// ✅ Configurare autentificare și JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
@@ -129,25 +136,24 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Adăugăm suport pentru autorizare
+// ✅ Adăugăm suport pentru autorizare
 builder.Services.AddAuthorization();
 
-// Configurăm suportul pentru serializarea JSON
+// ✅ Configurăm serializarea JSON
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
-// Configurăm Stripe
+// ✅ Configurăm Stripe
 builder.Services.AddSingleton<IStripeClient>(new StripeClient(StripeConfiguration.ApiKey));
 
-// Configurăm Swagger pentru documentarea API-ului
+// ✅ Configurăm Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.EnableAnnotations();
-
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "BookingApp API", Version = "v1" });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -184,12 +190,10 @@ var app = builder.Build();
 
 Console.WriteLine("Consola afiseaza");
 
-// Activăm redirecționarea la HTTPS
+// ✅ Activăm redirecționarea la HTTPS
 app.UseHttpsRedirection();
 
-
-
-// Middleware pentru logare a cererilor HTTP
+// ✅ Middleware pentru logare a cererilor HTTP
 app.Use(async (context, next) =>
 {
     Console.WriteLine($"[Middleware] Cerere primită: {context.Request.Method} {context.Request.Path}");
@@ -199,18 +203,18 @@ app.Use(async (context, next) =>
 
 app.UseRouting();
 
-// Adaugăm fișierele statice pentru fișierele HTML temporare
+// ✅ Adăugăm fișierele statice pentru fișierele HTML generate
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(Path.GetTempPath()),
     RequestPath = "/Harta"
 });
 
-// Configurăm pipeline-ul pentru autentificare și autorizare
+// ✅ Configurăm autentificare și autorizare
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Configurăm pipeline-ul pentru mediul de dezvoltare, incluzând Swagger
+// ✅ Configurăm Swagger în modul Development
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -223,7 +227,6 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// Mapăm rutele pentru controlere
-
+// ✅ Mapăm rutele pentru controlere
 app.MapControllers();
 app.Run();

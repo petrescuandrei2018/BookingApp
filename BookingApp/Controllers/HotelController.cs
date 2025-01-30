@@ -8,6 +8,7 @@ using BookingApp.Helpers;
 using Stripe;
 using Microsoft.Extensions.Options;
 using BookingApp.Services;
+using System.Text.Json;
 
 namespace BookingApp.Controllers
 {
@@ -21,7 +22,10 @@ namespace BookingApp.Controllers
         private readonly string _webhookSecret;
         private readonly IServiciuCacheRedis _cacheRedis;
         private readonly FabricaServiciuEmail _fabricaServiciuEmail;
-
+        private readonly IServiciuHarta _serviciuHarta;  // 🔹 Înlocuim IServiciuGenerareHarta cu IServiciuHarta
+        private readonly IServiciuCoordonate _serviciuCoordonate;
+        private readonly IServiciuFiltrareHoteluri _serviciuFiltrareHoteluri;
+        private readonly IServiciuGenerareHtml _serviciuGenerareHtml;
 
         public HotelController(
             IServiciuPlata serviciuPlata,
@@ -29,7 +33,11 @@ namespace BookingApp.Controllers
             IAuthService serviciuAutentificare,
             IOptions<StripeSettings> stripeSettings,
             IServiciuCacheRedis cacheRedis,
-            FabricaServiciuEmail fabricaServiciuEmail)
+            FabricaServiciuEmail fabricaServiciuEmail,
+            IServiciuHarta serviciuHarta, // 🔹 Acum folosim acest serviciu pentru generarea hărții
+            IServiciuCoordonate serviciuCoordonate,
+            IServiciuFiltrareHoteluri serviciuFiltrareHoteluri,
+            IServiciuGenerareHtml serviciuGenerareHtml)
         {
             _serviciuPlata = serviciuPlata;
             _serviciuHotel = serviciuHotel;
@@ -37,7 +45,11 @@ namespace BookingApp.Controllers
             _webhookSecret = stripeSettings.Value.WebhookSecret;
             _cacheRedis = cacheRedis;
             _fabricaServiciuEmail = fabricaServiciuEmail;
-        }        
+            _serviciuHarta = serviciuHarta;
+            _serviciuCoordonate = serviciuCoordonate;
+            _serviciuFiltrareHoteluri = serviciuFiltrareHoteluri;
+            _serviciuGenerareHtml = serviciuGenerareHtml;
+        }
 
         [HttpPost("register")]
         public async Task<ResponseDto> Inregistreaza([FromBody] UserDto userDto)
@@ -311,63 +323,23 @@ namespace BookingApp.Controllers
         }
 
         [HttpGet("GenereazaHarta")]
-        public async Task<IActionResult> GenereazaHarta([FromQuery] string oras, [FromQuery] double razaKm)
+        public async Task<IActionResult> GenereazaHarta([FromQuery] string? oras = null, [FromQuery] double? razaKm = null)
         {
-            var coordonateOras = await _serviciuHotel.ObțineCoordonateOras(oras);
-            if (coordonateOras == null)
+            try
             {
-                return NotFound($"Orașul {oras} nu a fost găsit.");
+                // Se generează și se salvează harta, returnând calea către fișier
+                var caleFisierHarta = await _serviciuHarta.GenereazaSiSalveazaHarta(oras ?? "Brasov", razaKm ?? 10);
+
+                // Returnează fișierul generat
+                var fileBytes = await System.IO.File.ReadAllBytesAsync(caleFisierHarta);
+                return File(fileBytes, "text/html", Path.GetFileName(caleFisierHarta));
             }
-
-            var hoteluri = await _serviciuHotel.ObtineHoteluriPeOras(oras, razaKm);
-
-            // Generăm conținutul HTML
-            var htmlContent = @$"
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Harta Hoteluri</title>
-    <meta charset='utf-8' />
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <link rel='stylesheet' href='https://unpkg.com/leaflet@1.7.1/dist/leaflet.css' />
-    <script src='https://unpkg.com/leaflet@1.7.1/dist/leaflet.js'></script>
-    <style>
-        #map {{
-            height: 600px;
-            width: 100%;
-        }}
-    </style>
-</head>
-<body>
-    <h1>Harta Hotelurilor în {oras}</h1>
-    <div id='map'></div>
-    <script>
-        var map = L.map('map').setView([{coordonateOras.Latitudine}, {coordonateOras.Longitudine}], 12);
-        L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-            maxZoom: 19,
-            subdomains: ['a', 'b', 'c'],
-            attribution: '© OpenStreetMap contributors'
-        }}).addTo(map);
-
-        var hoteluri = {System.Text.Json.JsonSerializer.Serialize(hoteluri)};
-        hoteluri.forEach(function(hotel) {{
-            L.marker([hotel.latitudine, hotel.longitudine])
-             .addTo(map)
-             .bindPopup('<b>' + hotel.numeHotel + '</b><br>Distanta: ' + hotel.distantaKm.toFixed(2) + ' km');
-        }});
-    </script>
-</body>
-</html>";
-
-            // Nume și cale temporară pentru fișierul HTML
-            var fileName = $"HartaHoteluri_{oras}.html";
-            var filePath = Path.Combine(Path.GetTempPath(), fileName);
-            await System.IO.File.WriteAllTextAsync(filePath, htmlContent);
-
-            // Returnăm fișierul ca atașament descărcabil
-            var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
-            return File(fileBytes, "text/html", fileName);
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Mesaj = $"Eroare la generarea hărții: {ex.Message}" });
+            }
         }
+
 
 
         [HttpPost("Plata")]
