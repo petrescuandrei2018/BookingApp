@@ -652,5 +652,19 @@ namespace BookingApp.Services
             return htmlContent;
         }
 
+        public async Task<List<HotelCoordonateDto>> GetAllHotelsCoordonateAsync()
+        {
+            var hoteluri = await _hotelRepository.GetAllHotels();
+
+            return hoteluri.Select(h => new HotelCoordonateDto
+            {
+                NumeHotel = h.Name,
+                Adresa = h.Address,
+                Latitudine = h.Latitudine,
+                Longitudine = h.Longitudine
+            }).ToList();
+        }
+
+
     }
 }

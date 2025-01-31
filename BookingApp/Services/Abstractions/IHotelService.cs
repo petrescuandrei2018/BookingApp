@@ -31,7 +31,8 @@ namespace BookingApp.Services.Abstractions
 
         Task<CoordonateOrasDto?> ObțineCoordonateOras(string oras);
 
-        Task<List<HotelCoordonateDto>> GetAllHotelsCoordonate(); // <- Noua metodă
+        Task<List<HotelCoordonateDto>> GetAllHotelsCoordonate();
+        Task<List<HotelCoordonateDto>> GetAllHotelsCoordonateAsync();
 
     }
 }

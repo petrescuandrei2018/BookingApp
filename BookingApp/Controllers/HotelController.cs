@@ -485,6 +485,14 @@ namespace BookingApp.Controllers
                 return StatusCode(500, new { Mesaj = $"Eroare la procesarea refund-ului: {ex.Message}" });
             }
         }
+
+        [HttpGet("GetAllHotelsCoordonate")]
+        public async Task<IActionResult> GetAllHotelsCoordonate()
+        {
+            var hoteluri = await _serviciuHotel.GetAllHotelsCoordonateAsync();
+            return Ok(hoteluri);
+        }
+
     }
 }
 

@@ -23,7 +23,7 @@ namespace BookingApp.Services
         <script>
             mapboxgl.accessToken = 'pk.eyJ1IjoicGV0cmVzY3VhbmRyZWkyMDE4IiwiYSI6ImNtNmp0ZXIwMDA1ZDQyanNoeWI0NHp4MGoifQ.O_k6-YsjhtV6e_K75h3Jrg';
             var data = {jsonHoteluri};
-            
+
             var map = new mapboxgl.Map({{
                 container: 'map',
                 style: 'mapbox://styles/mapbox/streets-v11',
@@ -54,3 +54,12 @@ namespace BookingApp.Services
         }
     }
 }
+
+
+
+
+
+
+
+
+
