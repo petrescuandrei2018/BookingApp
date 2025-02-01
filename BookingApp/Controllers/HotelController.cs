@@ -321,25 +321,12 @@ namespace BookingApp.Controllers
                 return StatusCode(500, new { Mesaj = $"A apărut o eroare: {ex.Message}" });
             }
         }
-
+        
         [HttpGet("GenereazaHarta")]
-        public async Task<IActionResult> GenereazaHarta([FromQuery] string? oras = null, [FromQuery] double? razaKm = null)
+        public async Task<FileResult> GenereazaHarta([FromQuery] string oras, [FromQuery] double razaKm)
         {
-            try
-            {
-                // Se generează și se salvează harta, returnând calea către fișier
-                var caleFisierHarta = await _serviciuHarta.GenereazaSiSalveazaHarta(oras ?? "Brasov", razaKm ?? 10);
-
-                // Returnează fișierul generat
-                var fileBytes = await System.IO.File.ReadAllBytesAsync(caleFisierHarta);
-                return File(fileBytes, "text/html", Path.GetFileName(caleFisierHarta));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { Mesaj = $"Eroare la generarea hărții: {ex.Message}" });
-            }
+            return await _serviciuHarta.GenereazaSiSalveazaHarta(oras, razaKm);
         }
-
 
 
         [HttpPost("Plata")]

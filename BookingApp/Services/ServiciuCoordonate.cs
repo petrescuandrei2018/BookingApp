@@ -1,79 +1,102 @@
 ﻿using System;
-using System.Net;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using BookingApp.Models.Dtos;
 using BookingApp.Services.Abstractions;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 
-namespace BookingApp.Services
+public class ServiciuCoordonate : IServiciuCoordonate
 {
-    public class ServiciuCoordonate : IServiciuCoordonate
+    private readonly HttpClient _httpClient;
+
+    public ServiciuCoordonate(HttpClient httpClient)
     {
-        private readonly HttpClient _httpClient;
-        private readonly ILogger<ServiciuCoordonate> _logger;
-        private readonly string _apiKey;
+        _httpClient = httpClient;
+    }
 
-        public ServiciuCoordonate(HttpClient httpClient, ILogger<ServiciuCoordonate> logger, IConfiguration config)
+    public async Task<CoordonateOrasDto?> ObtineCoordonateOras(string oras)
+    {
+        try
         {
-            _httpClient = httpClient;
-            _logger = logger;
-            _apiKey = config["OpenWeather:ApiKey"]; // ✅ Citim API Key-ul din config
+            Console.WriteLine($"[INFO] Verificare oraș: {oras}");
 
-            if (string.IsNullOrEmpty(_apiKey))
+            string url = $"https://api.openweathermap.org/geo/1.0/direct?q={oras}&limit=1&appid=YOUR_API_KEY";
+            HttpResponseMessage response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
             {
-                throw new InvalidOperationException("API Key pentru OpenWeather lipsește.");
+                Console.WriteLine($"[EROARE] API-ul OpenWeather a răspuns cu {response.StatusCode}");
+                return null;
+            }
+
+            string responseBody = await response.Content.ReadAsStringAsync();
+            var rezultat = JsonSerializer.Deserialize<List<CoordonateOrasDto>>(responseBody);
+
+            if (rezultat != null && rezultat.Count > 0)
+            {
+                return rezultat.First();
+            }
+            else
+            {
+                string orasSugerat = await GasesteOrasApropiat(oras);
+                throw new Exception($"Orașul '{oras}' nu a fost găsit. Ai vrut să spui '{orasSugerat}'?");
             }
         }
-
-        public async Task<CoordonateOrasDto?> ObtineCoordonateOras(string oras)
+        catch (Exception ex)
         {
-            try
-            {
-                string url = $"https://api.openweathermap.org/geo/1.0/direct?q={Uri.EscapeDataString(oras)}&limit=1&appid=aaf04cce6c826395586b11bd53674b59";
-                var response = await _httpClient.GetAsync(url);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    Console.WriteLine($"[ERROR] OpenWeather API nu a returnat date valide pentru {oras}. Cod HTTP: {response.StatusCode}");
-                    return new CoordonateOrasDto { Latitudine = 45.657974, Longitudine = 25.601198 }; // Default Brașov
-                }
-
-                var jsonResponse = await response.Content.ReadAsStringAsync();
-                var rezultat = JsonSerializer.Deserialize<List<OpenWeatherResponse>>(jsonResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                if (rezultat == null || rezultat.Count == 0 || rezultat[0].Lat == 0 || rezultat[0].Lon == 0)
-                {
-                    Console.WriteLine($"[WARN] OpenWeather nu a returnat coordonate pentru {oras}. Se folosește fallback.");
-                    return new CoordonateOrasDto { Latitudine = 45.657974, Longitudine = 25.601198 };
-                }
-
-                return new CoordonateOrasDto
-                {
-                    Latitudine = rezultat[0].Lat,
-                    Longitudine = rezultat[0].Lon
-                };
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] Eroare la obținerea coordonatelor pentru {oras}: {ex.Message}");
-                return new CoordonateOrasDto { Latitudine = 45.657974, Longitudine = 25.601198 }; // Default Brașov
-            }
-        }
-
-        private class OpenWeatherResponse
-        {
-            public double Lat { get; set; }
-            public double Lon { get; set; }
+            Console.WriteLine($"[EROARE] Nu s-au putut obține coordonatele: {ex.Message}");
+            return null;
         }
     }
 
-    // ✅ Model pentru OpenWeather API
-    public class OpenWeatherResponse
+    public async Task<string> GasesteOrasApropiat(string orasIntrodus)
     {
-        public double Lat { get; set; }
-        public double Lon { get; set; }
+        string url = $"https://api.openweathermap.org/geo/1.0/direct?q={orasIntrodus}&limit=5&appid=YOUR_API_KEY";
+        HttpResponseMessage response = await _httpClient.GetAsync(url);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"[EROARE] Nu am putut obține sugestii de orașe. API a răspuns cu {response.StatusCode}");
+            return "Necunoscut";
+        }
+
+        string responseBody = await response.Content.ReadAsStringAsync();
+        var oraseSugestii = JsonSerializer.Deserialize<List<CoordonateOrasDto>>(responseBody);
+
+        return oraseSugestii?.FirstOrDefault()?.NumeOras ?? "Necunoscut";
     }
+
+    public async Task<CoordonateOrasDto?> ObtineCoordonateOrasExterne(string oras)
+    {
+        var url = $"https://nominatim.openstreetmap.org/search?format=json&q={Uri.EscapeDataString(oras)}";
+
+        using var client = new HttpClient();
+        client.DefaultRequestHeaders.Add("User-Agent", "BookingApp/1.0 (contact@exemplu.com)");
+
+        var response = await client.GetAsync(url);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"[EROARE] Eșec la apelul API: {response.StatusCode}");
+            return null;
+        }
+
+        var jsonString = await response.Content.ReadAsStringAsync();
+        var json = JsonSerializer.Deserialize<List<OpenStreetMapResponse>>(jsonString);
+
+        if (json == null || json.Count == 0)
+        {
+            return null; // Orașul nu a fost găsit
+        }
+
+        return new CoordonateOrasDto
+        {
+            NumeOras = oras,
+            Latitudine = double.Parse(json[0].Latitudine),
+            Longitudine = double.Parse(json[0].Longitudine)
+        };
+    }
+
 }

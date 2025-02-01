@@ -22,44 +22,41 @@ namespace BookingApp.Services
         <div id='map'></div>
         <script>
             mapboxgl.accessToken = 'pk.eyJ1IjoicGV0cmVzY3VhbmRyZWkyMDE4IiwiYSI6ImNtNmp0ZXIwMDA1ZDQyanNoeWI0NHp4MGoifQ.O_k6-YsjhtV6e_K75h3Jrg';
+
             var data = {jsonHoteluri};
+            console.log('[DEBUG] JSON primit in Mapbox:', data); // Debugging în browser
 
             var map = new mapboxgl.Map({{
                 container: 'map',
                 style: 'mapbox://styles/mapbox/streets-v11',
-                center: [data.coordonateOras.Longitudine, data.coordonateOras.Latitudine],
+                center: data.coordonateOras ? [data.coordonateOras.Longitudine, data.coordonateOras.Latitudine] : [25.601198, 45.657974],
                 zoom: 12
             }});
 
+            if (data.toateHotelurile && Array.isArray(data.toateHotelurile)) {{
+                data.toateHotelurile.forEach(hotel => {{
+                    if (hotel.Longitudine && hotel.Latitudine) {{
+                        new mapboxgl.Marker()
+                            .setLngLat([hotel.Longitudine, hotel.Latitudine])
+                            .setPopup(new mapboxgl.Popup().setHTML('<b>' + hotel.NumeHotel + '</b>'))
+                            .addTo(map);
+                    }}
+                }});
+            }}
 
-
-            data.toateHotelurile.forEach(function(hotel) {{
-                new mapboxgl.Marker()
-                    .setLngLat([hotel.Longitudine, hotel.Latitudine])
-                    .setPopup(new mapboxgl.Popup().setHTML('<b>' + hotel.NumeHotel + '</b><br>' + hotel.Adresa))
-                    .addTo(map);
-            }});
-
-            data.hoteluriFiltrate.forEach(function(hotel) {{
-                new mapboxgl.Marker({{
-                    color: 'blue'
-                }})
-                .setLngLat([hotel.Longitudine, hotel.Latitudine])
-                .setPopup(new mapboxgl.Popup().setHTML('<b>' + hotel.NumeHotel + '</b><br>' + hotel.Adresa))
-                .addTo(map);
-            }});
+            if (data.hoteluriFiltrate && Array.isArray(data.hoteluriFiltrate)) {{
+                data.hoteluriFiltrate.forEach(hotel => {{
+                    if (hotel.Longitudine && hotel.Latitudine) {{
+                        new mapboxgl.Marker({{ color: 'blue' }})
+                            .setLngLat([hotel.Longitudine, hotel.Latitudine])
+                            .setPopup(new mapboxgl.Popup().setHTML('<b>' + hotel.NumeHotel + '</b>'))
+                            .addTo(map);
+                    }}
+                }});
+            }}
         </script>
     </body>
     </html>";
         }
     }
 }
-
-
-
-
-
-
-
-
-

@@ -1,7 +1,10 @@
-﻿using System.Text.Json;
+﻿using System.IO;
+using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using BookingApp.Models.Dtos;
 using BookingApp.Services.Abstractions;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BookingApp.Services
 {
@@ -11,128 +14,59 @@ namespace BookingApp.Services
         private readonly IServiciuGenerareHtml _serviciuGenerareHtml;
         private readonly IServiciuSalvareHarta _serviciuSalvareHarta;
         private readonly IServiciuCoordonate _serviciuCoordonate;
-        private readonly IHotelService _hotelService; // 🔹 Adăugat
+        private readonly IHotelService _serviciuHotel; // 🔹 Adăugat
+
 
         public ServiciuHarta(
             IServiciuFiltrareHoteluri serviciuFiltrare,
             IServiciuGenerareHtml serviciuGenerareHtml,
             IServiciuSalvareHarta serviciuSalvareHarta,
             IServiciuCoordonate serviciuCoordonate,
-            IHotelService hotelService) // 🔹 Adăugat în constructor
+            IHotelService serviciuHotel)
         {
             _serviciuFiltrare = serviciuFiltrare;
             _serviciuGenerareHtml = serviciuGenerareHtml;
             _serviciuSalvareHarta = serviciuSalvareHarta;
             _serviciuCoordonate = serviciuCoordonate;
-            _hotelService = hotelService; // 🔹 Inițializat
+            _serviciuHotel = serviciuHotel; // 🔹 Inițializare
+
         }
 
-
-
-        public async Task<string> GenereazaSiSalveazaHarta(string oras, double razaKm)
+        public async Task<FileResult> GenereazaSiSalveazaHarta(string oras, double razaKm)
         {
-            var toateHotelurile = await _serviciuFiltrare.FiltreazaHoteluri("", 0);
+            Console.WriteLine($"[INFO] Generare hartă pentru oraș: {oras}, raza: {razaKm} km");
+
+            // 🔹 Obține toate hotelurile din baza de date
+            var toateHotelurile = await _serviciuHotel.GetAllHotelsCoordonateAsync();
+
+            // 🔹 Obține doar hotelurile din raza definită de utilizator
             var hoteluriFiltrate = await _serviciuFiltrare.FiltreazaHoteluri(oras, razaKm);
 
-            var coordonateOras = await _serviciuCoordonate.ObtineCoordonateOras(oras)
-                              ?? new CoordonateOrasDto { Latitudine = 45.657974, Longitudine = 25.601198 }; // Default Brașov
+            // 🔹 Încearcă să obții coordonatele orașului din baza de date
+            var coordonateOras = await _serviciuCoordonate.ObtineCoordonateOras(oras);
 
-            if (coordonateOras == null || coordonateOras.Latitudine == 0 || coordonateOras.Longitudine == 0)
+            if (coordonateOras == null)
             {
-                Console.WriteLine($"[EROARE] Nu s-au putut obține coordonatele pentru orașul {oras}. Se folosește fallback.");
-                coordonateOras = new CoordonateOrasDto { Latitudine = 45.657974, Longitudine = 25.601198 }; // Default Brașov
-            }
+                Console.WriteLine($"[WARN] Orașul '{oras}' nu a fost găsit în baza de date. Se încearcă obținerea coordonatelor externe...");
 
-            // 🔹 Debugging: Verificăm datele înainte de generarea HTML
-            Console.WriteLine($"[DEBUG] JSON generat pentru hartă: {JsonSerializer.Serialize(new { toateHotelurile, hoteluriFiltrate, coordonateOras }, new JsonSerializerOptions { WriteIndented = true })}");
+                // 🔹 Căutăm coordonatele orașului folosind OpenStreetMap
+                coordonateOras = await _serviciuCoordonate.ObtineCoordonateOrasExterne(oras);
 
-            var jsonHoteluri = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                toateHotelurile = toateHotelurile.Select(h => new
+                if (coordonateOras == null)
                 {
-                    h.NumeHotel,
-                    h.Latitudine,
-                    h.Longitudine
-                }).ToList(),
+                    Console.WriteLine($"[EROARE] Orașul '{oras}' nu a fost găsit nici extern.");
 
-                hoteluriFiltrate = hoteluriFiltrate.Select(h => new
-                {
-                    h.NumeHotel,
-                    h.Latitudine,
-                    h.Longitudine
-                }).ToList(),
-
-                coordonateOras
-            });
-
-            var htmlContent = await _serviciuGenerareHtml.GenereazaHtmlHarta(jsonHoteluri);
-            return await _serviciuSalvareHarta.SalveazaHartaHtml(oras, htmlContent);
-        }
-    }
-}
-
-
-
-/*using System.Text.Json;
-using System.Threading.Tasks;
-using BookingApp.Models.Dtos;
-using BookingApp.Services.Abstractions;
-
-namespace BookingApp.Services
-{
-    public class ServiciuHarta : IServiciuHarta
-    {
-        private readonly IServiciuFiltrareHoteluri _serviciuFiltrare;
-        private readonly IServiciuGenerareHtml _serviciuGenerareHtml;
-        private readonly IServiciuSalvareHarta _serviciuSalvareHarta;
-        private readonly IServiciuCoordonate _serviciuCoordonate;
-        private readonly IHotelService _hotelService;
-
-        public ServiciuHarta(
-            IServiciuFiltrareHoteluri serviciuFiltrare,
-            IServiciuGenerareHtml serviciuGenerareHtml,
-            IServiciuSalvareHarta serviciuSalvareHarta,
-            IServiciuCoordonate serviciuCoordonate,
-            IHotelService hotelService)
-        {
-            _serviciuFiltrare = serviciuFiltrare;
-            _serviciuGenerareHtml = serviciuGenerareHtml;
-            _serviciuSalvareHarta = serviciuSalvareHarta;
-            _serviciuCoordonate = serviciuCoordonate;
-            _hotelService = hotelService;
-        }
-
-        public async Task<string> GenereazaSiSalveazaHarta(string oras, double razaKm)
-        {
-            // ✅ Obținem doar hotelurile din raza specificată (fără `toateHotelurile`)
-            var hoteluriFiltrate = await _serviciuFiltrare.FiltreazaHoteluri(oras, razaKm);
-
-            // ✅ Dacă nu există hoteluri, folosim fallback
-            if (!hoteluriFiltrate.Any())
-            {
-                Console.WriteLine($"[AVERTIZARE] Nu s-au găsit hoteluri pentru {oras}. Se va folosi un marker default.");
-                hoteluriFiltrate = new List<HotelCoordonateDto>
-        {
-            new HotelCoordonateDto
-            {
-                NumeHotel = "Hotel Fallback",
-                Latitudine = 45.657974,
-                Longitudine = 25.601198
-            }
-        };
+                    // 🔹 Dacă orașul nu este găsit deloc, setăm un punct default (România)
+                    coordonateOras = new CoordonateOrasDto
+                    {
+                        NumeOras = "România",
+                        Latitudine = 45.9432,
+                        Longitudine = 24.9668
+                    };
+                }
             }
 
-            // ✅ Obținem coordonatele orașului (fallback pe Brașov dacă nu există)
-            var coordonateOras = await _serviciuCoordonate.ObtineCoordonateOras(oras)
-                              ?? new CoordonateOrasDto { Latitudine = 45.657974, Longitudine = 25.601198 };
-
-            if (coordonateOras.Latitudine == 0 || coordonateOras.Longitudine == 0)
-            {
-                Console.WriteLine($"[EROARE] Nu s-au putut obține coordonatele pentru {oras}. Se folosește fallback.");
-                coordonateOras = new CoordonateOrasDto { Latitudine = 45.657974, Longitudine = 25.601198 };
-            }
-
-            // ✅ JSON mai sigur (verificare că variabilele există)
+            // 🔹 Serializăm TOATE hotelurile + cele filtrate
             var jsonHoteluri = JsonSerializer.Serialize(new
             {
                 hoteluriFiltrate = hoteluriFiltrate.Select(h => new
@@ -140,15 +74,24 @@ namespace BookingApp.Services
                     h.NumeHotel,
                     h.Latitudine,
                     h.Longitudine
-                }).ToList()
+                }).ToList(),
+                toateHotelurile = toateHotelurile.Select(h => new
+                {
+                    h.NumeHotel,
+                    h.Latitudine,
+                    h.Longitudine
+                }).ToList(),
+                coordonateOras
             });
 
-            // ✅ Generare HTML optimizată
             var htmlContent = await _serviciuGenerareHtml.GenereazaHtmlHarta(jsonHoteluri);
+            var caleFisier = await _serviciuSalvareHarta.SalveazaHartaHtml(oras, htmlContent);
+            var fileBytes = await File.ReadAllBytesAsync(caleFisier);
 
-            // ✅ Salvăm fișierul hărții și returnăm linkul de descărcare
-            return await _serviciuSalvareHarta.SalveazaHartaHtml(oras, htmlContent);
+            return new FileContentResult(fileBytes, "text/html")
+            {
+                FileDownloadName = $"HartaHoteluri_{oras}.html"
+            };
         }
     }
 }
-*/
