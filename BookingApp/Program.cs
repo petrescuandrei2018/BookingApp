@@ -18,6 +18,7 @@ using Stripe;
 using System.Globalization;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.FileProviders;
+using BookingApp.CanaleComunicare;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,7 +38,7 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Trace);
 
-// ✅ Configurare cultură default (ex. pentru formatarea numerelor, datelor)
+// ✅ Configurare cultură default
 var cultureInfo = new CultureInfo("en-US");
 CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
 CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
@@ -57,20 +58,25 @@ IMapper mapper = MappingConfig.RegisterMaps().CreateMapper();
 builder.Services.AddSingleton(mapper);
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
+
 // ✅ Configurăm Redis
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration.GetConnectionString("Redis");
 });
 
-// ✅ Înregistrăm serviciile în ordinea corectă
+// ✅ Înregistrăm serviciile principale
 builder.Services.AddScoped<IServiciuCacheRedis, ServiciuCacheRedis>();
 builder.Services.AddScoped<IHotelRepository, HotelRepository>();
 builder.Services.AddScoped<IHotelService, HotelService>();
 builder.Services.AddScoped<IRezervareServiciuActualizare, RezervareServiciuActualizare>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IExportService, ExportService>();
+builder.Services.AddScoped<IStatisticiService, StatisticiService>(); // 🔹 Adăugat aici
+builder.Services.AddSignalR();
 
-// ✅ Adăugăm serviciul pentru căutarea coordonatelor online
+
+// ✅ Servicii pentru căutarea coordonatelor online
 builder.Services.AddHttpClient<IServiciuCoordonateOnline, ServiciuCoordonateOnline>(client =>
 {
     var config = builder.Configuration;
@@ -81,14 +87,12 @@ builder.Services.AddHttpClient<IServiciuCoordonateOnline, ServiciuCoordonateOnli
         throw new InvalidOperationException("API Key pentru OpenWeather lipsește din configurație.");
     }
 
-    client.DefaultRequestHeaders.Add("User-Agent", "BookingApp"); // OpenWeather cere User-Agent valid
+    client.DefaultRequestHeaders.Add("User-Agent", "BookingApp");
 });
 builder.Services.AddScoped<IServiciuCoordonateOnline, ServiciuCoordonateOnline>();
-
-// ✅ Înregistrăm serviciul local de coordonate
 builder.Services.AddScoped<IServiciuCoordonate, ServiciuCoordonate>();
 
-// ✅ Servicii legate de hartă și filtrare hoteluri
+// ✅ Servicii pentru hartă și filtrare hoteluri
 builder.Services.AddScoped<IServiciuFiltrareHoteluri, ServiciuFiltrareHoteluri>();
 builder.Services.AddScoped<IServiciuGenerareHtml, ServiciuGenerareHtml>();
 builder.Services.AddScoped<IServiciuSalvareHarta, ServiciuSalvareHarta>();
@@ -114,7 +118,10 @@ builder.Services.AddScoped<FabricaServiciuEmail>();
 
 // ✅ Configurare autentificare și JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+if (string.IsNullOrEmpty(jwtSettings?.Key))
+{
+    throw new InvalidOperationException("Cheia JWT lipsește din configurație.");
+}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -136,7 +143,6 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// ✅ Adăugăm suport pentru autorizare
 builder.Services.AddAuthorization();
 
 // ✅ Configurăm serializarea JSON
@@ -188,6 +194,9 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+app.MapHub<NotificariAdministrator>("/notificari-admin");
+
+
 Console.WriteLine("Consola afiseaza");
 
 // ✅ Activăm redirecționarea la HTTPS
@@ -222,8 +231,6 @@ if (app.Environment.IsDevelopment())
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "BookingApp API V1");
         c.RoutePrefix = "swagger";
-        c.EnableDeepLinking();
-        c.DisplayRequestDuration();
     });
 }
 
