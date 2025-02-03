@@ -34,5 +34,14 @@ namespace BookingApp.Services.Abstractions
         Task<List<HotelCoordonateDto>> GetAllHotelsCoordonate();
         Task<List<HotelCoordonateDto>> GetAllHotelsCoordonateAsync();
 
+        Task<List<HotelHartaDto>> GetAllHotelsForMapAsync();
+
+        public interface IHotelService
+        {
+            Task<List<HotelHartaDto>> GetAllHotelsForMapAsync();
+        }
+
+
+
     }
 }

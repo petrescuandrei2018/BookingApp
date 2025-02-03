@@ -4,6 +4,7 @@ using BookingApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookingApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250203121817_ActualizareRecenzii")]
+    partial class ActualizareRecenzii
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -174,6 +177,12 @@ namespace BookingApp.Migrations
                     b.Property<string>("AspectePozitive")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("DataRecenziei")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -186,8 +195,14 @@ namespace BookingApp.Migrations
                     b.Property<int>("HotelId")
                         .HasColumnType("int");
 
-                    b.Property<double>("Rating")
-                        .HasColumnType("float");
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("LastModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("Rating")
+                        .HasColumnType("decimal(2,1)");
 
                     b.Property<bool>("RecomandaHotelul")
                         .HasColumnType("bit");
@@ -335,7 +350,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 1,
                             Email = "mihai@gmail.com",
-                            Password = "$2a$11$w/s/t4lTngPP0tcdTLoFMuzSbJGrLcgUFMw1DAwNd83w8eNfAyzBe",
+                            Password = "$2a$11$2DoCTB2xda.BNYmvYpOteujba4JNDKiCUKZ2xyYsXItQMRkemn8aS",
                             PhoneNumber = "0775695878",
                             Rol = "admin",
                             UserName = "Mihai",
@@ -345,7 +360,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 2,
                             Email = "nicu@gmail.com",
-                            Password = "$2a$11$kY.FASiyHzIPnDRh7WDv3.aPa5oHbkJn7gxUBi5q6xVnZZUuilW26",
+                            Password = "$2a$11$7Ge.C6hkX3I5NowTSpJxJuqSmZeIWQm78OP5TYogzBf/eNi.HCZsm",
                             PhoneNumber = "0770605078",
                             Rol = "admin",
                             UserName = "Nicu",
@@ -355,7 +370,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 3,
                             Email = "alex@gmail.com",
-                            Password = "$2a$11$Y5M0q0azgMpYqkIAJj5AcedYctCe8FWVJzdJsAcwX9usGcO4gbF8C",
+                            Password = "$2a$11$g0yF8Xk1vZxOZRD1jlErE./z2ev289.o/SybsDQMbQmCe9ZC0B1/e",
                             PhoneNumber = "0765665668",
                             Rol = "user",
                             UserName = "Alex",

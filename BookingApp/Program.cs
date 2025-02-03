@@ -91,6 +91,9 @@ builder.Services.AddHttpClient<IServiciuCoordonateOnline, ServiciuCoordonateOnli
 });
 builder.Services.AddScoped<IServiciuCoordonateOnline, ServiciuCoordonateOnline>();
 builder.Services.AddScoped<IServiciuCoordonate, ServiciuCoordonate>();
+builder.Services.AddScoped<IRecenzieService, RecenzieService>();
+builder.Services.AddScoped<IRecenzieRepository, RecenzieRepository>();
+
 
 // ✅ Servicii pentru hartă și filtrare hoteluri
 builder.Services.AddScoped<IServiciuFiltrareHoteluri, ServiciuFiltrareHoteluri>();

@@ -86,17 +86,17 @@ namespace BookingApp.Repository
         }
 
 
-        public async Task<List<HotelTipCameraPretReview>> GetAllHotelsByRating()
+        public async Task<List<HotelTipCameraPretRecenzie>> GetAllHotelsByRating()
         {
             return await (from hotel in _database.Hotels
                           join tipCamera in _database.TipCamere on hotel.HotelId equals tipCamera.HotelId
                           join pretCamera in _database.PretCamere on tipCamera.TipCameraId equals pretCamera.TipCameraId
-                          join review in _database.Reviews on hotel.HotelId equals review.HotelId
-                          select new HotelTipCameraPretReview
+                          join recenzie in _database.Recenzii on hotel.HotelId equals recenzie.HotelId
+                          select new HotelTipCameraPretRecenzie
                           {
-                              HotelName = hotel.Name,
-                              Address = hotel.Address,
-                              TipCameraName = tipCamera.Name,
+                              NumeHotel = hotel.Name,
+                              Adresa = hotel.Address,
+                              NumeTipCamera = tipCamera.Name,
                               CapacitatePersoane = tipCamera.CapacitatePersoane,
                               NrTotalCamere = tipCamera.NrTotalCamere,
                               NrCamereDisponibile = tipCamera.NrCamereDisponibile,
@@ -104,15 +104,18 @@ namespace BookingApp.Repository
                               PretNoapte = pretCamera.PretNoapte,
                               StartPretCamera = pretCamera.StartPretCamera,
                               EndPretCamera = pretCamera.EndPretCamera,
-                              Rating = review.Rating,
-                              Description = review.Description
+                              Rating = recenzie.Rating,
+                              Descriere = recenzie.Descriere, // Înlocuit Description cu Descriere
+                              AspectePozitive = recenzie.AspectePozitive,
+                              AspecteNegative = recenzie.AspecteNegative,
+                              RecomandaHotelul = recenzie.RecomandaHotelul
                           }).ToListAsync();
         }
 
 
-        public async Task<List<Review>> GetAllReviews()
+        public async Task<List<Recenzie>> GetAllRecenzii()
         {
-            return await _database.Reviews.ToListAsync();
+            return await _database.Recenzii.ToListAsync();
         }
 
         public async Task<List<Rezervare>> GetNonExpiredRezervari()
@@ -265,6 +268,22 @@ namespace BookingApp.Repository
             return hoteluri
                 .Where(h => UtilitatiGeografice.CalculeazaDistanta(latitudine, longitudine, h.Latitudine, h.Longitudine) <= razaKm)
                 .ToList();
+        }
+
+        public async Task<List<Hotel>> GetAllHotelsAsync()
+        {
+            var hoteluri = await (from hotel in _database.Hotels
+                                  join tipCamera in _database.TipCamere on hotel.HotelId equals tipCamera.HotelId into camereGrup
+                                  select new Hotel
+                                  {
+                                      HotelId = hotel.HotelId,
+                                      Name = hotel.Name,
+                                      Address = hotel.Address,
+                                      Latitudine = hotel.Latitudine,
+                                      Longitudine = hotel.Longitudine,
+                                  }).ToListAsync();
+
+            return hoteluri;
         }
 
     }

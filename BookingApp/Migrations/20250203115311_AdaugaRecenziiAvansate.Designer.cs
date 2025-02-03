@@ -4,6 +4,7 @@ using BookingApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookingApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250203115311_AdaugaRecenziiAvansate")]
+    partial class AdaugaRecenziiAvansate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -174,6 +177,12 @@ namespace BookingApp.Migrations
                     b.Property<string>("AspectePozitive")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("DataRecenziei")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -186,8 +195,14 @@ namespace BookingApp.Migrations
                     b.Property<int>("HotelId")
                         .HasColumnType("int");
 
-                    b.Property<double>("Rating")
-                        .HasColumnType("float");
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("LastModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("Rating")
+                        .HasColumnType("decimal(2,1)");
 
                     b.Property<bool>("RecomandaHotelul")
                         .HasColumnType("bit");
@@ -202,6 +217,78 @@ namespace BookingApp.Migrations
                     b.HasIndex("UtilizatorId");
 
                     b.ToTable("Recenzii");
+                });
+
+            modelBuilder.Entity("BookingApp.Models.Review", b =>
+                {
+                    b.Property<int>("ReviewId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReviewId"));
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("HotelId")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Rating")
+                        .HasColumnType("float");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ReviewId");
+
+                    b.HasIndex("HotelId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Reviews");
+
+                    b.HasData(
+                        new
+                        {
+                            ReviewId = 1,
+                            Description = "A fost bine",
+                            HotelId = 1,
+                            Rating = 4.9000000000000004,
+                            UserId = 1
+                        },
+                        new
+                        {
+                            ReviewId = 2,
+                            Description = "Mâncare excelentă",
+                            HotelId = 1,
+                            Rating = 5.0,
+                            UserId = 2
+                        },
+                        new
+                        {
+                            ReviewId = 3,
+                            Description = "Priveliste la mare",
+                            HotelId = 1,
+                            Rating = 5.0,
+                            UserId = 3
+                        },
+                        new
+                        {
+                            ReviewId = 4,
+                            Description = "Cazare târzie",
+                            HotelId = 1,
+                            Rating = 3.5,
+                            UserId = 3
+                        },
+                        new
+                        {
+                            ReviewId = 5,
+                            Description = "Muste in camera",
+                            HotelId = 2,
+                            Rating = 2.0,
+                            UserId = 2
+                        });
                 });
 
             modelBuilder.Entity("BookingApp.Models.TipCamera", b =>
@@ -335,7 +422,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 1,
                             Email = "mihai@gmail.com",
-                            Password = "$2a$11$w/s/t4lTngPP0tcdTLoFMuzSbJGrLcgUFMw1DAwNd83w8eNfAyzBe",
+                            Password = "$2a$11$30u7YqWhdmyp0nWC3LaMHeCMGO0.B7hm.BWhrghXHVfP225BoEkvu",
                             PhoneNumber = "0775695878",
                             Rol = "admin",
                             UserName = "Mihai",
@@ -345,7 +432,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 2,
                             Email = "nicu@gmail.com",
-                            Password = "$2a$11$kY.FASiyHzIPnDRh7WDv3.aPa5oHbkJn7gxUBi5q6xVnZZUuilW26",
+                            Password = "$2a$11$valVxen2fq0eKUcB3eTgouRcHnnkkAYdsoqk4kvlBLSPRhrsaaDom",
                             PhoneNumber = "0770605078",
                             Rol = "admin",
                             UserName = "Nicu",
@@ -355,7 +442,7 @@ namespace BookingApp.Migrations
                         {
                             UserId = 3,
                             Email = "alex@gmail.com",
-                            Password = "$2a$11$Y5M0q0azgMpYqkIAJj5AcedYctCe8FWVJzdJsAcwX9usGcO4gbF8C",
+                            Password = "$2a$11$g1IG8EYf09vW/Qsg9SbyceIcBwlPI8QwHhvBekRDHmwI5odQ1SsGK",
                             PhoneNumber = "0765665668",
                             Rol = "user",
                             UserName = "Alex",
@@ -452,6 +539,25 @@ namespace BookingApp.Migrations
                     b.Navigation("Hotel");
 
                     b.Navigation("Utilizator");
+                });
+
+            modelBuilder.Entity("BookingApp.Models.Review", b =>
+                {
+                    b.HasOne("BookingApp.Models.Hotel", "Hotel")
+                        .WithMany()
+                        .HasForeignKey("HotelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BookingApp.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Hotel");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("BookingApp.Models.TipCamera", b =>

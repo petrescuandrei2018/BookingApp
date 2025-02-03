@@ -480,6 +480,13 @@ namespace BookingApp.Controllers
             return Ok(hoteluri);
         }
 
+        [HttpGet("Harta")]
+        public async Task<IActionResult> GetHotelsForMap()
+        {
+            var hoteluri = await _serviciuHotel.GetAllHotelsForMapAsync();
+            return Ok(hoteluri);
+        }
+
     }
 }
 

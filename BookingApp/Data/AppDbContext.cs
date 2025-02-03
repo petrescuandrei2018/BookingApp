@@ -12,8 +12,8 @@ namespace BookingApp.Data
         public DbSet<TipCamera> TipCamere { get; set; }
         public DbSet<PretCamera> PretCamere { get; set; }
         public DbSet<User> Users { get; set; }
-        public DbSet<Review> Reviews { get; set; }
         public DbSet<Rezervare> Rezervari { get; set; }
+        public DbSet<Recenzie> Recenzii { get; set; }
 
         // Adăugăm această metodă
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -25,6 +25,14 @@ namespace BookingApp.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<Recenzie>()
+                .Property(r => r.Rating)
+                .HasColumnType("float");
+
+            modelBuilder.Entity<Recenzie>()
+                .Property(r => r.DataRecenziei)
+                .HasDefaultValueSql("GETUTCDATE()");
 
             // Configurări pentru entitatea Rezervare
             modelBuilder.Entity<Rezervare>(entity =>
@@ -85,15 +93,6 @@ namespace BookingApp.Data
                 new User(1, "Mihai", "mihai@gmail.com", "0775695878", 30, BCrypt.Net.BCrypt.HashPassword("parola1")) { Rol = "admin" },
                 new User(2, "Nicu", "nicu@gmail.com", "0770605078", 20, BCrypt.Net.BCrypt.HashPassword("parola2")) { Rol = "admin" },
                 new User(3, "Alex", "alex@gmail.com", "0765665668", 32, BCrypt.Net.BCrypt.HashPassword("parola3")) { Rol = "user" }
-            );
-
-            // Seed data pentru Review
-            modelBuilder.Entity<Review>().HasData(
-                new Review(1, 4.9, "A fost bine", 1, 1),
-                new Review(2, 5, "Mâncare excelentă", 1, 2),
-                new Review(3, 5, "Priveliste la mare", 1, 3),
-                new Review(4, 3.5, "Cazare târzie", 1, 3),
-                new Review(5, 2, "Muste in camera", 2, 2)
             );
         }
     }

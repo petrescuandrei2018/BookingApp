@@ -9,8 +9,8 @@ namespace BookingApp.Repository.Abstractions
         Task<List<Hotel>> GetAllHotels();
         Task<List<HotelTipCamera>> GetAllHotelsTipCamera();
         Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPret();
-        Task<List<HotelTipCameraPretReview>> GetAllHotelsByRating();
-        Task<List<Review>> GetAllReviews();
+        Task<List<HotelTipCameraPretRecenzie>> GetAllHotelsByRating();
+        Task<List<Recenzie>> GetAllRecenzii();
         Task<List<Rezervare>> GetNonExpiredRezervari();
         Task<List<PretCamera>> GetAllPretCamere();
         Task<List<Rezervare>> GetAllRezervariAsync();
@@ -35,6 +35,10 @@ namespace BookingApp.Repository.Abstractions
         Task<PretCamera> GetPretCameraByIdAsync(int pretCameraId);
 
         Task<List<Hotel>> ObtineHoteluriPeLocatie(double latitudine, double longitudine, double razaKm);
+
+        Task<List<Hotel>> GetAllHotelsAsync();
+
+
 
     }
 

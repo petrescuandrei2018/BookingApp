@@ -295,18 +295,18 @@ namespace BookingApp.Services
         public async Task<List<HotelWithRating>> GetAllHotelsByRating(double? rating)
         {
             var hotels = await _hotelRepository.GetAllHotels();
-            var reviews = await _hotelRepository.GetAllReviews();
+            var recenzii = await _hotelRepository.GetAllRecenzii();
 
             return hotels.Select(hotel =>
             {
-                var hotelReviews = reviews.Where(r => r.HotelId == hotel.HotelId);
-                var ratingMediu = hotelReviews.Any() ? hotelReviews.Average(r => r.Rating) : 0;
+                var hotelRecenzii = recenzii.Where(r => r.HotelId == hotel.HotelId);
+                var ratingMediu = hotelRecenzii.Any() ? hotelRecenzii.Average(r => r.Rating) : 0;
 
                 return new HotelWithRating
                 {
                     Address = hotel.Address,
                     HotelName = hotel.Name,
-                    ReviewuriTotale = hotelReviews.Count(),
+                    RecenziiTotale = hotelRecenzii.Count(),
                     Rating = ratingMediu
                 };
             })
@@ -665,6 +665,47 @@ namespace BookingApp.Services
             }).ToList();
         }
 
+        public async Task<List<HotelHartaDto>> GetAllHotelsForMapAsync()
+        {
+            // Preluăm toate datele înainte de LINQ
+            var hoteluri = await _hotelRepository.GetAllHotels();
+            var tipuriCamere = await _hotelRepository.GetAllTipCamereAsync();
+            var preturiCamere = await _hotelRepository.GetAllPretCamere();
+            var recenzii = await _hotelRepository.GetAllRecenzii();
 
+            // Transformăm fiecare hotel în DTO
+            var hoteluriDto = hoteluri.Select(hotel => new HotelHartaDto
+            {
+                HotelId = hotel.HotelId,
+                Nume = hotel.Name,
+                Adresa = hotel.Address,
+                Latitudine = hotel.Latitudine,
+                Longitudine = hotel.Longitudine,
+
+                // Obținem tipurile de camere pentru hotel
+                TipuriCamere = tipuriCamere
+                    .Where(tc => tc.HotelId == hotel.HotelId)
+                    .Select(tc => tc.Name)
+                    .ToList(),
+
+                // Calculăm prețul mediu pe noapte
+                PretMediuNoapte = preturiCamere
+                    .Where(pc => tipuriCamere
+                        .Where(tc => tc.HotelId == hotel.HotelId)
+                        .Select(tc => tc.TipCameraId)
+                        .Contains(pc.TipCameraId))
+                    .Average(pc => (decimal?)pc.PretNoapte) ?? 0,
+
+                // Calculăm rating-ul mediu
+                RatingMediu = recenzii
+                    .Where(r => r.HotelId == hotel.HotelId)
+                    .Average(r => (double?)r.Rating) ?? 0,
+
+                // Imagine placeholder
+                ImagineUrl = $"https://source.unsplash.com/400x300/?hotel,city"
+            }).ToList();
+
+            return hoteluriDto;
+        }
     }
 }

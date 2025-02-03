@@ -20,5 +20,7 @@ namespace BookingApp.Models
             Latitudine = latitudine;
             Longitudine = longitudine;
         }
+
+        public Hotel() { }
     }
 }

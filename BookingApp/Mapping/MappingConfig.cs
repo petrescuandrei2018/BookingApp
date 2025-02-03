@@ -13,6 +13,7 @@ namespace BookingApp.Mapping
                 config.CreateMap<Hotel, ResponseHotelDto>();
                 config.CreateMap<ResponseHotelDto, Hotel>();
                 config.CreateMap<RezervareDto, Rezervare>().ReverseMap();
+                config.CreateMap<Recenzie, RecenzieDto>().ReverseMap();
 
                 // Mapare completă pentru GetAllRezervariDto
                 config.CreateMap<Rezervare, GetAllRezervariDto>()
