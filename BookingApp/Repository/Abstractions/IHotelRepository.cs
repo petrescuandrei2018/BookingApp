@@ -37,7 +37,7 @@ namespace BookingApp.Repository.Abstractions
         Task<List<Hotel>> ObtineHoteluriPeLocatie(double latitudine, double longitudine, double razaKm);
 
         Task<List<Hotel>> GetAllHotelsAsync();
-
+         Task AdaugaRezervareAsync(Rezervare rezervare);
 
 
     }

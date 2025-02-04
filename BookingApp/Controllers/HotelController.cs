@@ -26,6 +26,8 @@ namespace BookingApp.Controllers
         private readonly IServiciuCoordonate _serviciuCoordonate;
         private readonly IServiciuFiltrareHoteluri _serviciuFiltrareHoteluri;
         private readonly IServiciuGenerareHtml _serviciuGenerareHtml;
+        private readonly IServiciuUtilizator _serviciuUtilizator;
+
 
         public HotelController(
             IServiciuPlata serviciuPlata,
@@ -37,7 +39,8 @@ namespace BookingApp.Controllers
             IServiciuHarta serviciuHarta, // 🔹 Acum folosim acest serviciu pentru generarea hărții
             IServiciuCoordonate serviciuCoordonate,
             IServiciuFiltrareHoteluri serviciuFiltrareHoteluri,
-            IServiciuGenerareHtml serviciuGenerareHtml)
+            IServiciuGenerareHtml serviciuGenerareHtml,
+            IServiciuUtilizator serviciuUtilizator)
         {
             _serviciuPlata = serviciuPlata;
             _serviciuHotel = serviciuHotel;
@@ -49,6 +52,7 @@ namespace BookingApp.Controllers
             _serviciuCoordonate = serviciuCoordonate;
             _serviciuFiltrareHoteluri = serviciuFiltrareHoteluri;
             _serviciuGenerareHtml = serviciuGenerareHtml;
+            _serviciuUtilizator = serviciuUtilizator;
         }
 
         [HttpPost("register")]
@@ -139,9 +143,10 @@ namespace BookingApp.Controllers
             });
         }
 
+
         [HttpPost("CreateRezervare")]
         [Authorize]
-        public async Task<IActionResult> CreateRezervare([FromBody] RezervareDto rezervareDto)
+        public async Task<IActionResult> CreateRezervare([FromBody] CreareRezervareDto creareRezervareDto)
         {
             if (!ModelState.IsValid)
             {
@@ -150,23 +155,16 @@ namespace BookingApp.Controllers
 
             try
             {
-                // Obținem ID-ul utilizatorului conectat
-                rezervareDto.UserId = int.Parse(User.Claims.First(c => c.Type == "UtilizatorId").Value);
-
-                // Apelăm metoda din HotelService pentru a crea rezervarea
-                var rezultat = await _serviciuHotel.CreateRezervareFromDto(rezervareDto);
-
-                return Ok(new
-                {
-                    Mesaj = "Rezervarea a fost creată cu succes.",
-                    Rezervare = rezultat
-                });
+                var rezultat = await _serviciuHotel.CreateRezervareFromDto(creareRezervareDto, User);
+                return Ok(new { Mesaj = "Rezervarea a fost creată cu succes.", Rezervare = rezultat });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { Mesaj = $"A apărut o eroare: {ex.Message}" });
             }
         }
+
+
 
 
         [HttpGet("GetAllRezervari")]
@@ -327,6 +325,15 @@ namespace BookingApp.Controllers
         {
             return await _serviciuHarta.GenereazaSiSalveazaHarta(oras, razaKm);
         }
+
+        [HttpGet("verifica-disponibilitate")]
+        public async Task<IActionResult> VerificaDisponibilitate(
+    int hotelId, int tipCameraId, DateTime checkIn, DateTime checkOut)
+        {
+            var disponibil = await _serviciuHotel.VerificaDisponibilitateAsync(hotelId, tipCameraId, checkIn, checkOut);
+            return Ok(new { Disponibil = disponibil });
+        }
+
 
 
         [HttpPost("Plata")]

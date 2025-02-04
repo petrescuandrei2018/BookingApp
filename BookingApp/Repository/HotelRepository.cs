@@ -28,6 +28,13 @@ namespace BookingApp.Repository
             var hotels = await _database.Hotels.ToListAsync();
             return hotels;
         }
+
+        public async Task AdaugaRezervareAsync(Rezervare rezervare)
+        {
+            await _database.Rezervari.AddAsync(rezervare);
+            await _database.SaveChangesAsync();
+        }
+
         public async Task<List<Rezervare>> GetAllRezervariCompletAsync()
         {
             return await _database.Rezervari.ToListAsync();

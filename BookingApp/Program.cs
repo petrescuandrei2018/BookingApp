@@ -19,8 +19,16 @@ using System.Globalization;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.FileProviders;
 using BookingApp.CanaleComunicare;
+using System.Net.WebSockets;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ✅ Adăugăm serviciul WebSocket
+builder.Services.AddSingleton<IServiciuWebSocket, ServiciuWebSocket>();
+
+
+// ✅ Adăugăm SignalR
+builder.Services.AddSignalR();
 
 // ✅ Debugging Environment
 Console.WriteLine($"Mediul curent: {builder.Environment.EnvironmentName}");
@@ -58,7 +66,6 @@ IMapper mapper = MappingConfig.RegisterMaps().CreateMapper();
 builder.Services.AddSingleton(mapper);
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
-
 // ✅ Configurăm Redis
 builder.Services.AddStackExchangeRedisCache(options =>
 {
@@ -72,28 +79,14 @@ builder.Services.AddScoped<IHotelService, HotelService>();
 builder.Services.AddScoped<IRezervareServiciuActualizare, RezervareServiciuActualizare>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IExportService, ExportService>();
-builder.Services.AddScoped<IStatisticiService, StatisticiService>(); // 🔹 Adăugat aici
-builder.Services.AddSignalR();
+builder.Services.AddScoped<IStatisticiService, StatisticiService>();
+builder.Services.AddScoped<IServiciuUtilizator, ServiciuUtilizator>();
 
-
-// ✅ Servicii pentru căutarea coordonatelor online
-builder.Services.AddHttpClient<IServiciuCoordonateOnline, ServiciuCoordonateOnline>(client =>
-{
-    var config = builder.Configuration;
-    var apiKey = config["OpenWeather:ApiKey"];
-
-    if (string.IsNullOrEmpty(apiKey))
-    {
-        throw new InvalidOperationException("API Key pentru OpenWeather lipsește din configurație.");
-    }
-
-    client.DefaultRequestHeaders.Add("User-Agent", "BookingApp");
-});
-builder.Services.AddScoped<IServiciuCoordonateOnline, ServiciuCoordonateOnline>();
+// ✅ Servicii pentru coordonate și recenzii
+builder.Services.AddHttpClient<IServiciuCoordonateOnline, ServiciuCoordonateOnline>();
 builder.Services.AddScoped<IServiciuCoordonate, ServiciuCoordonate>();
 builder.Services.AddScoped<IRecenzieService, RecenzieService>();
 builder.Services.AddScoped<IRecenzieRepository, RecenzieRepository>();
-
 
 // ✅ Servicii pentru hartă și filtrare hoteluri
 builder.Services.AddScoped<IServiciuFiltrareHoteluri, ServiciuFiltrareHoteluri>();
@@ -155,88 +148,45 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
-// ✅ Configurăm Stripe
-builder.Services.AddSingleton<IStripeClient>(new StripeClient(StripeConfiguration.ApiKey));
-
 // ✅ Configurăm Swagger
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.EnableAnnotations();
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "BookingApp API", Version = "v1" });
-
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        In = ParameterLocation.Header,
-        Name = "Authorization",
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        Description = "Introduceți 'Bearer' urmat de token"
-    });
-
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            new string[] { }
-        }
-    });
-
-    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    c.IncludeXmlComments(xmlPath);
-});
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-app.MapHub<NotificariAdministrator>("/notificari-admin");
+// ✅ Activăm WebSockets
+app.UseWebSockets();
 
-
-Console.WriteLine("Consola afiseaza");
-
-// ✅ Activăm redirecționarea la HTTPS
-app.UseHttpsRedirection();
-
-// ✅ Middleware pentru logare a cererilor HTTP
+// ✅ Middleware pentru WebSocket
 app.Use(async (context, next) =>
 {
-    Console.WriteLine($"[Middleware] Cerere primită: {context.Request.Method} {context.Request.Path}");
-    Console.WriteLine($"[Middleware] QueryString: {context.Request.QueryString}");
-    await next();
+    if (context.Request.Path == "/ws")
+    {
+        if (context.WebSockets.IsWebSocketRequest)
+        {
+            using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+            var webSocketManager = context.RequestServices.GetRequiredService<IServiciuWebSocket>();
+            await webSocketManager.HandleWebSocketConnection(webSocket);
+        }
+        else
+        {
+            context.Response.StatusCode = 400;
+        }
+    }
+    else
+    {
+        await next();
+    }
 });
-
-app.UseRouting();
-
-// ✅ Adăugăm fișierele statice pentru fișierele HTML generate
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(Path.GetTempPath()),
-    RequestPath = "/Harta"
-});
-
-// ✅ Configurăm autentificare și autorizare
+// ✅ Middleware-uri standard
+app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseStaticFiles();
+app.UseRouting();
 
-// ✅ Configurăm Swagger în modul Development
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "BookingApp API V1");
-        c.RoutePrefix = "swagger";
-    });
-}
-
-// ✅ Mapăm rutele pentru controlere
+// ✅ Mapăm WebSocket și SignalR
+app.MapHub<NotificariAdministrator>("/notificari-admin");
 app.MapControllers();
+
 app.Run();

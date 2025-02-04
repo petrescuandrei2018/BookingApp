@@ -1,5 +1,6 @@
 ﻿using BookingApp.Models.Dtos;
 using BookingApp.Models;
+using System.Security.Claims;
 
 namespace BookingApp.Services.Abstractions
 {
@@ -13,7 +14,7 @@ namespace BookingApp.Services.Abstractions
         Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPret();
         Task<List<HotelTipCameraPret>> GetAllHotelsTipCameraPretFiltered(string? filtruNumeHotel, int? capacitatePersoane, float? pretCamera);
         Task<List<GetAllRezervariDto>> GetAllRezervariAsync(); // Actualizat tipul de returnare
-        Task<RezervareDto> CreateRezervareFromDto(RezervareDto rezervareDto);
+        Task<Rezervare> CreateRezervareFromDto(CreareRezervareDto creareRezervareDto, ClaimsPrincipal utilizator);
         Task<IEnumerable<GetAllRezervariDto>> GetNonExpiredRezervari();
         Task ProcesarePlataStripeAsync(int rezervareId);
         Task<Rezervare> GetRezervareByIdAsync(int rezervareId);
@@ -41,7 +42,7 @@ namespace BookingApp.Services.Abstractions
             Task<List<HotelHartaDto>> GetAllHotelsForMapAsync();
         }
 
-
+        Task<bool> VerificaDisponibilitateAsync(int hotelId, int tipCameraId, DateTime checkIn, DateTime checkOut);
 
     }
 }
