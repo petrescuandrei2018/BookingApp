@@ -94,7 +94,7 @@ namespace BookingApp.Controllers
                 }
 
                 // Apelează metoda de înregistrare
-                var utilizatorNou = await _serviciuAutentificare.RegisterUser(userDto);
+                var utilizatorNou = await _serviciuAutentificare.RegisterUserAsync(userDto);
                 response.IsSuccess = true;
                 response.Message = "Utilizator înregistrat cu succes.";
                 response.Result = new
@@ -118,14 +118,14 @@ namespace BookingApp.Controllers
 
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LogInDto logInDto)
+        public async Task<IActionResult> Login([FromBody] LogInDto logInDto)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest("Datele trimise nu sunt valide.");
             }
 
-            var token = _serviciuAutentificare.AutentificaUtilizator(logInDto.Email, logInDto.Password);
+            var token = await _serviciuAutentificare.AutentificaUtilizatorAsync(logInDto.Email, logInDto.Password);
             if (token == "Email sau parola incorectă.")
             {
                 return Unauthorized(new

@@ -23,15 +23,22 @@ using System.Net.WebSockets;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ Adăugăm serviciul WebSocket
+// ✅ Serviciu WebSocket
 builder.Services.AddSingleton<IServiciuWebSocket, ServiciuWebSocket>();
-
 
 // ✅ Adăugăm SignalR
 builder.Services.AddSignalR();
 
-// ✅ Debugging Environment
-Console.WriteLine($"Mediul curent: {builder.Environment.EnvironmentName}");
+// ✅ Configurare Identity
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    options.SignIn.RequireConfirmedEmail = true;
+    options.Tokens.AuthenticatorTokenProvider = TokenOptions.DefaultAuthenticatorProvider;
+});
+
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
 
 // ✅ Validare StripeSettings
 var stripeSection = builder.Configuration.GetSection("Stripe");
@@ -51,10 +58,7 @@ var cultureInfo = new CultureInfo("en-US");
 CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
 CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 
-// ✅ Înregistrăm configurațiile JWT
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
-
-// ✅ Configurăm baza de date (SQL Server)
+// ✅ Configurare baza de date SQL Server
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -95,9 +99,9 @@ builder.Services.AddScoped<IServiciuSalvareHarta, ServiciuSalvareHarta>();
 builder.Services.AddScoped<IServiciuHarta, ServiciuHarta>();
 
 // ✅ Servicii pentru plăți și Stripe
+builder.Services.AddSingleton<IStripeClient>(new StripeClient(stripeSection["SecretKey"]!));
 builder.Services.AddScoped<IServiciuStripe, ServiciuStripe>();
 builder.Services.AddScoped<IServiciuPlata, ServiciuPlata>();
-builder.Services.AddHostedService<RezervareServiciuActualizare>();
 
 // ✅ Servicii pentru e-mail
 builder.Services.AddScoped<ServiciuEmailMock>();
@@ -150,7 +154,35 @@ builder.Services.AddControllers()
 
 // ✅ Configurăm Swagger
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "BookingApp API", Version = "v1" });
+
+    // Adăugăm suport pentru autentificare cu JWT în Swagger
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Introduceți token-ul JWT în formatul: Bearer {token}",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
@@ -178,15 +210,25 @@ app.Use(async (context, next) =>
         await next();
     }
 });
+
 // ✅ Middleware-uri standard
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseStaticFiles();
+
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "BookingApp API v1");
+});
+
+
 app.UseRouting();
 
 // ✅ Mapăm WebSocket și SignalR
 app.MapHub<NotificariAdministrator>("/notificari-admin");
 app.MapControllers();
 
+// ✅ Pornim aplicația
 app.Run();

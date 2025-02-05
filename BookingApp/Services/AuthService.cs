@@ -1,172 +1,142 @@
-﻿using BCrypt.Net;
-using BookingApp.Data;
+﻿using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using BookingApp.Models;
 using BookingApp.Models.Dtos;
-using BookingApp.Services.Abstractions;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
-namespace BookingApp.Services
+public class AuthService : IAuthService
 {
-    public class AuthService : IAuthService
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IConfiguration _config;
+
+    public AuthService(UserManager<ApplicationUser> userManager, IConfiguration config)
     {
-        private readonly IConfiguration _configuratie;
-        private readonly AppDbContext _context;
+        _userManager = userManager;
+        _config = config;
+    }
 
-        public AuthService(IConfiguration configuratie, AppDbContext context)
+    public async Task<bool> ValideazaUtilizatorAsync(string email, string parola)
+    {
+        var utilizator = await _userManager.FindByEmailAsync(email);
+        if (utilizator == null)
+            return false;
+
+        return await _userManager.CheckPasswordAsync(utilizator, parola);
+    }
+
+    public async Task<string> AutentificaUtilizatorAsync(string email, string parola)
+    {
+        var utilizator = await _userManager.FindByEmailAsync(email);
+        if (utilizator == null || !await _userManager.CheckPasswordAsync(utilizator, parola))
+            return string.Empty;
+
+        var roluri = await _userManager.GetRolesAsync(utilizator);
+        return GenereazaToken(utilizator.Id, roluri);
+    }
+
+    public string GenereazaToken(string utilizatorId, IEnumerable<string> roluri)
+    {
+        var claims = new List<Claim>
         {
-            _configuratie = configuratie;
-            _context = context;
+            new Claim(ClaimTypes.NameIdentifier, utilizatorId),
+        };
+
+        claims.AddRange(roluri.Select(rol => new Claim(ClaimTypes.Role, rol)));
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            _config["Jwt:Issuer"],
+            _config["Jwt:Audience"],
+            claims,
+            expires: DateTime.UtcNow.AddHours(2),
+            signingCredentials: creds
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public async Task<ApplicationUser> RegisterUserAsync(UserDto userDto)
+    {
+        var utilizator = new ApplicationUser
+        {
+            UserName = userDto.UserName,
+            Email = userDto.Email,
+            PhoneNumber = userDto.PhoneNumber,
+            Varsta = userDto.Varsta // Adăugăm vârsta utilizatorului
+        };
+
+        var result = await _userManager.CreateAsync(utilizator, userDto.Password);
+        if (!result.Succeeded)
+            throw new Exception("Eroare la înregistrare.");
+
+        return utilizator;
+    }
+
+    public async Task<ApplicationUser?> GetUserByIdAsync(string userId)
+    {
+        return await _userManager.FindByIdAsync(userId);
+    }
+
+    public async Task<bool> UpdateUserAsync(User user)
+    {
+        var utilizator = await _userManager.FindByIdAsync(user.UserId.ToString());
+        if (utilizator == null)
+            return false;
+
+        utilizator.Email = user.Email;
+        utilizator.PhoneNumber = user.PhoneNumber;
+
+        var result = await _userManager.UpdateAsync(utilizator);
+        return result.Succeeded;
+    }
+
+    public async Task<List<User>> GetAllUsersAsync()
+    {
+        var users = _userManager.Users.ToList();
+        return users.Cast<User>().ToList();
+    }
+
+    public async Task<bool> ExistaEmailAsync(string email)
+    {
+        return await _userManager.FindByEmailAsync(email) != null;
+    }
+
+    public async Task<bool> ExistaTelefonAsync(string phoneNumber)
+    {
+        return await _userManager.Users.AnyAsync(u => u.PhoneNumber == phoneNumber);
+    }
+
+    // 🔹 2FA
+    public async Task<string?> GenereazaCheie2FAAsync(string userId)
+    {
+        var utilizator = await _userManager.FindByIdAsync(userId);
+        if (utilizator == null)
+            return null;
+
+        var key = await _userManager.GetAuthenticatorKeyAsync(utilizator);
+        if (string.IsNullOrEmpty(key))
+        {
+            await _userManager.ResetAuthenticatorKeyAsync(utilizator);
+            key = await _userManager.GetAuthenticatorKeyAsync(utilizator);
         }
 
-        public string GenereazaToken(string utilizatorId, IEnumerable<string> roluri)
-        {
-            var setariJwt = _configuratie.GetSection("Jwt");
+        return key;
+    }
 
-            var cheieSecreta = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("aVerySecureAndLongEnoughKey1234567890!"));
-            if (cheieSecreta.Key.Length < 32)
-            {
-                throw new ArgumentException("Cheia secretă trebuie să aibă cel puțin 32 de caractere.");
-            }
+    public async Task<bool> Verifica2FAAsync(string userId, string codTOTP)
+    {
+        var utilizator = await _userManager.FindByIdAsync(userId);
+        if (utilizator == null)
+            return false;
 
-            var semnatura = new SigningCredentials(cheieSecreta, SecurityAlgorithms.HmacSha256);
-
-            var now = DateTimeOffset.UtcNow;
-            var expires = now.AddMinutes(int.Parse(setariJwt["ExpiresInMinutes"]));
-
-            var informatiiToken = new List<Claim>
-            {
-                new Claim("UtilizatorId", utilizatorId),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-            };
-
-            informatiiToken.AddRange(roluri.Select(rol => new Claim(ClaimTypes.Role, rol)));
-
-            var token = new JwtSecurityToken(
-                issuer: setariJwt["Issuer"],
-                audience: setariJwt["Audience"],
-                claims: informatiiToken,
-                expires: expires.UtcDateTime,
-                signingCredentials: semnatura
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
-        public bool ValideazaUtilizator(string email, string parola)
-        {
-            // Normalizează email-ul înainte de query
-            email = email.ToLower();
-
-            var utilizator = _context.Users
-                .FirstOrDefault(u => u.Email == email);
-
-            if (utilizator == null)
-            {
-                return false;
-            }
-
-            // Verifică parola criptată
-            return BCrypt.Net.BCrypt.Verify(parola, utilizator.Password);
-        }
-
-        public async Task<bool> ExistaEmailAsync(string email)
-        {
-            // Normalizează email-ul înainte de query
-            email = email.ToLower();
-
-            return await _context.Users.AnyAsync(u => u.Email == email);
-        }
-
-        public async Task<bool> ExistaTelefonAsync(string phoneNumber)
-        {
-            return await _context.Users.AnyAsync(u => u.PhoneNumber == phoneNumber);
-        }
-
-        public async Task<User> RegisterUser(UserDto userDto)
-        {
-            // Verifică dacă email-ul și numărul de telefon sunt unice
-            if (await ExistaEmailAsync(userDto.Email))
-            {
-                throw new Exception("Email-ul este deja utilizat.");
-            }
-
-            if (await ExistaTelefonAsync(userDto.PhoneNumber))
-            {
-                throw new Exception("Numărul de telefon este deja utilizat.");
-            }
-
-            // Normalizează email-ul și criptează parola
-            var user = new User
-            {
-                UserName = userDto.UserName,
-                Email = userDto.Email.ToLower(), // Normalizare email
-                PhoneNumber = userDto.PhoneNumber,
-                Varsta = userDto.Varsta,
-                Password = HashPassword(userDto.Password), // Criptare parolă
-                Rol = userDto.Rol // Preia rolul din DTO
-            };
-
-            // Salvează utilizatorul în baza de date
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            return user;
-        }
-
-        private string HashPassword(string password)
-        {
-            return BCrypt.Net.BCrypt.HashPassword(password);
-        }
-
-        public string AutentificaUtilizator(string email, string parola)
-        {
-            // Normalizează email-ul înainte de validare
-            email = email.ToLower();
-
-            if (!ValideazaUtilizator(email, parola))
-            {
-                return "Email sau parola incorectă.";
-            }
-
-            var utilizator = _context.Users.FirstOrDefault(u => u.Email == email);
-            var roluri = new List<string> { utilizator.Rol };
-
-            return GenereazaToken(utilizator.UserId.ToString(), roluri);
-        }
-
-        public async Task<User?> GetUserByIdAsync(int userId)
-        {
-            return await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
-        }
-
-        public async Task<bool> UpdateUserAsync(User user)
-        {
-            try
-            {
-                // Validare pentru `Rol` dacă este necesară
-                if (user.Rol != "admin" && user.Rol != "user")
-                {
-                    throw new Exception("Rol invalid. Permis doar 'admin' sau 'user'.");
-                }
-
-                _context.Users.Update(user);
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        public async Task<List<User>> GetAllUsersAsync()
-        {
-            return await _context.Users.ToListAsync();
-        }
+        return await _userManager.VerifyTwoFactorTokenAsync(utilizator, TokenOptions.DefaultAuthenticatorProvider, codTOTP);
     }
 }
