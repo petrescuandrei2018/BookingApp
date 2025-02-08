@@ -186,6 +186,15 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// ✅ Middleware-uri standard
+app.UseHttpsRedirection();
+
+app.UseStaticFiles();
+
+app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
 // ✅ Activăm WebSockets
 app.UseWebSockets();
 
@@ -211,12 +220,6 @@ app.Use(async (context, next) =>
     }
 });
 
-// ✅ Middleware-uri standard
-app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
-app.UseStaticFiles();
-
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -224,7 +227,7 @@ app.UseSwaggerUI(c =>
 });
 
 
-app.UseRouting();
+
 
 // ✅ Mapăm WebSocket și SignalR
 app.MapHub<NotificariAdministrator>("/notificari-admin");

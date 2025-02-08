@@ -71,7 +71,7 @@ namespace BookingApp.Services
 
         public async Task<UtilizatoriStatisticiDto> GetUtilizatoriStatisticiAsync()
         {
-            var utilizatoriActivi = await _context.Users.CountAsync(u => _context.Rezervari.Any(r => r.UserId == u.UserId));
+            var utilizatoriActivi = await _context.Users.CountAsync(u => _context.Rezervari.Any(r => r.UserId.ToString() == u.Id));
             var utilizatoriInactivi = await _context.Users.CountAsync() - utilizatoriActivi;
 
             return new UtilizatoriStatisticiDto

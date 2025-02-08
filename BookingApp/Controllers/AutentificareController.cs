@@ -1,4 +1,5 @@
 ﻿using BookingApp.Models;
+using BookingApp.Models.Dtos;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using QRCoder;
@@ -31,6 +32,7 @@ public class AutentificareController : ControllerBase
         return Ok(new { Token = token });
     }
 
+
     [HttpPost("genereaza-2fa")]
     public async Task<IActionResult> Genereaza2FA([FromBody] string userId)
     {
@@ -48,4 +50,47 @@ public class AutentificareController : ControllerBase
 
         return Ok(new { SecretKey = key, QRCodeBase64 = $"data:image/png;base64,{qrCodeBase64}" });
     }
+
+    [HttpPost("verifica-2fa")]
+    public async Task<IActionResult> Verifica2FA([FromBody] Verifica2FADto model)
+    {
+        var user = await _userManager.FindByIdAsync(model.UserId);
+        if (user == null)
+            return Unauthorized(new { Mesaj = "Utilizator invalid." });
+
+        var isValid = await _userManager.VerifyTwoFactorTokenAsync(user, TokenOptions.DefaultAuthenticatorProvider, model.CodTOTP);
+        if (!isValid)
+            return Unauthorized(new { Mesaj = "Cod 2FA invalid." });
+
+        var token = await _authService.AutentificaUtilizatorAsync(user.Email, model.Parola);
+        return Ok(new { Token = token });
+    }
+
+    [HttpPost("activeaza-2fa")]
+    public async Task<IActionResult> Activeaza2FA([FromBody] string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+            return NotFound(new { Mesaj = "Utilizatorul nu a fost găsit." });
+
+        user.TwoFactorEnabled = true;
+        await _userManager.UpdateAsync(user);
+
+        return Ok(new { Mesaj = "2FA activat cu succes." });
+    }
+
+    [HttpPost("dezactiveaza-2fa")]
+    public async Task<IActionResult> Dezactiveaza2FA([FromBody] string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+            return NotFound(new { Mesaj = "Utilizatorul nu a fost găsit." });
+
+        user.TwoFactorEnabled = false;
+        await _userManager.UpdateAsync(user);
+
+        return Ok(new { Mesaj = "2FA dezactivat cu succes." });
+    }
+
+
 }

@@ -9,6 +9,7 @@ using Stripe;
 using Microsoft.Extensions.Options;
 using BookingApp.Services;
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
 
 namespace BookingApp.Controllers
 {
@@ -93,18 +94,19 @@ namespace BookingApp.Controllers
                     userDto.Rol = "user";
                 }
 
-                // Apelează metoda de înregistrare
-                var utilizatorNou = await _serviciuAutentificare.RegisterUserAsync(userDto);
+                // Apelează metoda de înregistrare din serviciu
+                var (utilizatorNou, rol) = await _serviciuAutentificare.RegisterUserAsync(userDto);
+
                 response.IsSuccess = true;
                 response.Message = "Utilizator înregistrat cu succes.";
                 response.Result = new
                 {
-                    Id = utilizatorNou.UserId,
+                    Id = utilizatorNou.Id, // ✅ Corectat pentru IdentityUser
                     Nume = utilizatorNou.UserName,
                     Email = utilizatorNou.Email,
                     Telefon = utilizatorNou.PhoneNumber,
                     Varsta = utilizatorNou.Varsta,
-                    Rol = utilizatorNou.Rol
+                    Rol = rol // 🔹 Obținem rolul direct din serviciu
                 };
             }
             catch (Exception ex)
@@ -115,6 +117,7 @@ namespace BookingApp.Controllers
 
             return response;
         }
+
 
 
         [HttpPost("login")]
@@ -212,9 +215,9 @@ namespace BookingApp.Controllers
 
         [HttpPut("SetAdmin")]
         [Authorize(Roles = "admin")]
-        public async Task<IActionResult> SetAdmin(int userId, bool isAdmin)
+        public async Task<IActionResult> SetAdmin(string userId, bool isAdmin)
         {
-            if (userId <= 0)
+            if (string.IsNullOrWhiteSpace(userId))
             {
                 return BadRequest(new { Mesaj = "ID-ul utilizatorului nu este valid." });
             }
@@ -222,15 +225,13 @@ namespace BookingApp.Controllers
             try
             {
                 var user = await _serviciuAutentificare.GetUserByIdAsync(userId);
-
                 if (user == null)
                 {
                     return NotFound(new { Mesaj = "Utilizatorul nu a fost găsit." });
                 }
 
-                user.Rol = isAdmin ? "admin" : "user";
-                var success = await _serviciuAutentificare.UpdateUserAsync(user);
-
+                var rol = isAdmin ? "admin" : "user";
+                var success = await _serviciuAutentificare.AtribuieRolAsync(user.Id, rol);
                 if (!success)
                 {
                     return StatusCode(500, new { Mesaj = "A apărut o eroare la salvarea modificărilor." });
@@ -244,19 +245,15 @@ namespace BookingApp.Controllers
             }
         }
 
+
+
         [HttpGet("GetAllUsers")]
         public async Task<IActionResult> GetAllUsers()
         {
             try
             {
                 var users = await _serviciuAutentificare.GetAllUsersAsync();
-                return Ok(users.Select(user => new
-                {
-                    Id = user.UserId,
-                    Name = user.UserName,
-                    Email = user.Email,
-                    Rol = user.Rol.ToString()
-                }));
+                return Ok(users);
             }
             catch (Exception ex)
             {

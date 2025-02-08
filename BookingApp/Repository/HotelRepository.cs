@@ -249,8 +249,20 @@ namespace BookingApp.Repository
 
         public async Task<List<User>> GetAllUsers()
         {
-            return await _database.Users.ToListAsync();
+            return await _database.Users
+                .Select(u => new User
+                {
+                    UserId = int.Parse(u.Id), // IdentityUser folosește `string` ca ID, trebuie convertit
+                    UserName = u.UserName,
+                    Email = u.Email,
+                    PhoneNumber = u.PhoneNumber,
+                    Varsta = u.Varsta,
+                    Password = "****", // Nu returnăm parola reală pentru securitate
+                    Rol = "user" // Dacă folosești rolurile din Identity, trebuie mapate corect
+                })
+                .ToListAsync();
         }
+
         public async Task<PretCamera?> GetPretCameraById(int pretCameraId)
         {
             return await _database.PretCamere
